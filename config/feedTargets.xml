@@ -1,0 +1,29 @@
+<precisionNutrition>
+  <stages animalType="COW">
+    <stage name="calf"     minAgeM="0"  maxAgeM="6"  baseADG="0.7"/>
+    <stage name="grower"   minAgeM="6"  maxAgeM="18" baseADG="0.9"/>
+    <stage name="finisher" minAgeM="18" maxAgeM="36" baseADG="1.2"/>
+    <stage name="dry"      minAgeM="36" maxAgeM="120" baseADG="0.4"/>
+  </stages>
+
+  <targets animalType="COW">
+    <target stage="calf"     energy="0.35" protein="0.22" fibre="0.28" starch="0.15"/>
+    <target stage="grower"   energy="0.37" protein="0.20" fibre="0.28" starch="0.15"/>
+    <target stage="finisher" energy="0.42" protein="0.17" fibre="0.21" starch="0.20"/>
+    <target stage="dry"      energy="0.30" protein="0.16" fibre="0.44" starch="0.10"/>
+  </targets>
+
+  <intakes animalType="COW">
+    <intake stage="calf"     min="6"  max="10"/>
+    <intake stage="grower"   min="10" max="16"/>
+    <intake stage="finisher" min="12" max="20"/>
+    <intake stage="dry"      min="8"  max="12"/>
+  </intakes>
+
+  <params>
+    <dietPenaltyK value="0.85"/>
+    <starchUpper  value="0.25"/>
+    <adgCap       value="1.6"/>
+    <grassFedFlag minGrassShare="0.80" minDays="120"/>
+  </params>
+</precisionNutrition>

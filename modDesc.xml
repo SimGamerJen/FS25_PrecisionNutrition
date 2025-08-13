@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<modDesc descVersion="99">
+  <title>Precision Nutrition</title>
+  <author>SimGamerJen + GPT-5 Thinking</author>
+  <version>0.1.0.3</version>
+  <description>Nutrition-aware growth and value for beef cattle, based on actual feed mix. Safe patch; no base files changed.</description>
+  <extraSourceFiles>
+    <sourceFile filename="scripts/PN_Compat_RL.lua"/>
+    <sourceFile filename="scripts/PN_Settings.lua"/>
+    <sourceFile filename="scripts/PN_FeedMatrix.lua"/>
+    <sourceFile filename="scripts/PN_Core.lua"/>
+    <sourceFile filename="scripts/PN_HusbandryPatch.lua"/>
+    <sourceFile filename="scripts/PN_Load.lua"/>
+    <sourceFile filename="scripts/PN_Events.lua"/>
+      <sourceFile filename="scripts/PN_UI.lua"/>
+  </extraSourceFiles>
+</modDesc>
