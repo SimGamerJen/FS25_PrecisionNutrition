@@ -217,6 +217,7 @@ MIT (or project’s chosen licence). Include a `LICENCE` file in the repo if you
 
 ## 🧾 Changelog
 
+* **0.2.0.1** - Resolved inability to find husbandries, animal sheds, and placeables
 * **0.1.0.3** — Added Alt+N debug overlay; safer hooks & guards.
 * **0.1.0.2** — Robust file paths, XML nil-safety, broader husbandry hook.
 * **0.1.0.1** — Fixed Lua `require` usage; global feed matrix; small patch syntax fix.
