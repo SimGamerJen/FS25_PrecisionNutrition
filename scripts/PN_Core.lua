@@ -1,5 +1,57 @@
 PN_Core = {}
 
+-- === PN multi-species support (Option A stage lookup) ===
+local cfg = cfg or nil
+
+function PN_Core.init(settings)
+    cfg = settings
+end
+
+local function normSpecies(s)
+    s = tostring(s or ""):upper()
+    if s == "COW" or s == "CATTLE" then return "COW" end
+    if s == "SHEEP" then return "SHEEP" end
+    if s == "PIG" or s == "SWINE" then return "PIG" end
+    if s == "GOAT" then return "GOAT" end
+    if s == "CHICKEN" or s == "HEN" then return "CHICKEN" end
+    return "COW"
+end
+
+local function inferSpecies(entry, clusterSystem)
+    if entry and entry.type and entry.type ~= "ANIMAL" then
+        return normSpecies(entry.type)
+    end
+    if clusterSystem and clusterSystem.getClusters then
+        local ok, clusters = pcall(clusterSystem.getClusters, clusterSystem)
+        if ok and type(clusters) == "table" then
+            for _, c in pairs(clusters) do
+                local st = tostring(c and c.subType or ""):upper()
+                if st:find("COW", 1, true) or st:find("BULL", 1, true) then return "COW" end
+                if st:find("SHEEP", 1, true) then return "SHEEP" end
+                if st:find("PIG", 1, true) then return "PIG" end
+                if st:find("GOAT", 1, true) then return "GOAT" end
+                if st:find("CHICK", 1, true) or st:find("HEN", 1, true) then return "CHICKEN" end
+            end
+        end
+    end
+    return "COW"
+end
+
+local function getStage(species, ageM)
+    species = normSpecies(species)
+    local stages = cfg and cfg.stages and cfg.stages[species]
+    if type(stages) == "table" then
+        for _, s in ipairs(stages) do
+            if ageM >= (s.minAgeM or 0) and ageM < (s.maxAgeM or math.huge) then
+                return s
+            end
+        end
+        if stages.default then return stages.default end
+    end
+    return { name="DEFAULT", baseADG=0, minAgeM=0, maxAgeM=math.huge }
+end
+
+
 local Feed = PN_FeedMatrix
 local cfg  = nil
 
@@ -48,7 +100,15 @@ local function intakeScore(stage, intakePH)
   return 0.5 + 0.5 * ((intakePH - I.min) / (I.max - I.min))
 end
 
-function PN_Core.calcTick(animalType, ageMonths, consumedByFillType, nAnimals, dtMs)
+function PN_Core.calcTick(species, ageMonths, consumedByFillType, headcount, dtMs)
+
+    if not cfg or not cfg.stages or not cfg.intakes or not cfg.targets then return nil end
+    species = normSpecies(species)
+    local S = getStage(species, ageMonths or 0)
+    local stageName = S.name
+    local speciesIntakes = cfg.intakes[species]
+    local speciesTargets = cfg.targets[species]
+    if not speciesIntakes or not speciesTargets then return nil end
   if animalType ~= "COW" or nAnimals < 1 then return nil end
 
   local stage  = getStage(ageMonths)
@@ -80,6 +140,7 @@ end
 
 -- === PN live per-husbandry update (safe) ===
 function PN_Core:updateHusbandry(entry, clusterSystem, dtMs, ctx)
+    local species = inferSpecies(entry, clusterSystem)
     if clusterSystem == nil or clusterSystem.getClusters == nil then return end
 
     local ok, clusters = pcall(clusterSystem.getClusters, clusterSystem)
@@ -116,11 +177,27 @@ function PN_Core:updateHusbandry(entry, clusterSystem, dtMs, ctx)
     -- local res = PN_Core.calcTick and PN_Core.calcTick("COW", ageMonths, consumed, totals.animals, dtMs) or nil
     -- entry.__pn_last = res
 
-    -- Temporary heartbeat so you see something in the log:
-    if totals.animals > 0 and (g_time % 3000) < (dtMs or 0) then
-        Logging.info("[PN] %s | head=%d (♂%d / ♀%d, preg=%d) avgW=%.1fkg",
-            tostring(entry.name), totals.animals, totals.bulls, totals.cows, totals.pregnant, totals.avgWeight)
-    end
+	-- === Heartbeat (server-only), dt-accumulated ===
+	PN_HEARTBEAT_MS = PN_HEARTBEAT_MS or 3000
+	local isMp  = g_currentMission and g_currentMission.missionDynamicInfo and g_currentMission.missionDynamicInfo.isMultiplayer
+	local force = (ctx and ctx.forceBeat) == true
+
+	-- Only log from server (avoid client spam in MP)
+	if not (isMp and not g_server) then
+		-- accumulate dt and log on threshold
+		entry.__pn_lastBeat = entry.__pn_lastBeat or 0  -- keep for reference
+		entry.__pn_accum    = (entry.__pn_accum or 0) + (dtMs or 0)
+
+		local firstPrint = (entry.__pn_lastBeat == 0)
+		local due        = entry.__pn_accum >= (PN_HEARTBEAT_MS or 3000)
+
+		if force or firstPrint or due then
+			Logging.info("[PN] %s [%s] | head=%d (M:%d / F:%d, preg=%d) avgW=%.1fkg",
+				tostring(entry.name), species, totals.animals, totals.bulls, totals.cows, totals.pregnant, totals.avgWeight)
+			entry.__pn_lastBeat = g_time or 0
+			entry.__pn_accum    = 0
+		end
+	end
 
     entry.__pn_totals = totals
 end
