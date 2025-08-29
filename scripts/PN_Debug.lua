@@ -194,6 +194,94 @@ if addConsoleCommand ~= nil then
     addConsoleCommand("pnOverlayMine", "Filter overlay to my farm only (on/off|all)", "cmdOverlayMine", PN_Debug)
 end
 
+-- Set/view barn nutrition ratio (0..1): pnNut <index> <ratio>
+function PN_Debug:cmdNut(idxStr, ratioStr)
+    if PN_HusbandryScan == nil or PN_HusbandryScan.getAll == nil then
+        Logging.info("[PN] pnNut: scanner not available")
+        return
+    end
+    local idx = tonumber(idxStr or "")
+    if idx == nil then
+        Logging.info("[PN] Usage: pnNut <index> <ratio 0..1>  (see pnDumpHusbandries)")
+        return
+    end
+    local list = PN_HusbandryScan.getAll()
+    local e = list[idx]
+    if not e then
+        Logging.info("[PN] pnNut: no entry at index %s", tostring(idx))
+        return
+    end
+    if ratioStr == nil or ratioStr == "" then
+        -- just show current
+        local r = (PN_Core and PN_Core._nutBarns and PN_Core._nutBarns[e]) or 1.0
+        Logging.info("[PN] Barn '%s' nutrition ratio = %.0f%%", tostring(e.name), (r or 1)*100)
+        return
+    end
+    local r = tonumber(ratioStr)
+    if not r then
+        Logging.info("[PN] pnNut: ratio must be a number from 0..1")
+        return
+    end
+    if PN_Core and PN_Core.setBarnNutrition then
+        PN_Core.setBarnNutrition(e, r)
+        Logging.info("[PN] Barn '%s' nutrition ratio set to %.0f%%", tostring(e.name), math.max(0, math.min(1, r))*100)
+    else
+        Logging.info("[PN] pnNut: PN_Core not ready")
+    end
+end
+
+if addConsoleCommand ~= nil then
+    addConsoleCommand("pnNut", "Set/view PN nutrition ratio for one entry (0..1)", "cmdNut", PN_Debug)
+end
+
+-- Simulate nutrition over a time window: pnSim <index> <hours|e.g. 6>  (or add 'd' suffix for days, e.g. 0.5d)
+function PN_Debug:cmdSim(idxStr, spanStr)
+    if PN_HusbandryScan == nil or PN_HusbandryScan.getAll == nil or PN_Core == nil or PN_Core.updateHusbandry == nil then
+        Logging.info("[PN] pnSim: PN not ready")
+        return
+    end
+    local idx = tonumber(idxStr or "")
+    if idx == nil then
+        Logging.info("[PN] Usage: pnSim <index> <hours|e.g. 6 or 0.5d for days>  (see pnDumpHusbandries)")
+        return
+    end
+    local list = PN_HusbandryScan.getAll()
+    local e = list[idx]
+    if not e or not e.clusterSystem then
+        Logging.info("[PN] pnSim: no entry/cluster at index %s", tostring(idx))
+        return
+    end
+
+    local hours = tonumber(spanStr or "")
+    if not hours then
+        -- allow suffix 'd' for days
+        local s = tostring(spanStr or ""):lower()
+        local num = tonumber(s:match("^([%d%.]+)d$") or "")
+        if num then hours = num * 24 end
+    end
+    if not hours or hours <= 0 then
+        Logging.info("[PN] pnSim: please provide a positive number of hours (e.g. 6) or days (e.g. 0.5d)")
+        return
+    end
+
+    local dtMs = math.floor(hours * 60 * 60 * 1000)  -- ms in the simulated window
+    pcall(PN_Core.updateHusbandry, PN_Core, e, e.clusterSystem, dtMs, { forceBeat = true })
+
+    -- Show the result immediately
+    local name    = tostring(e.name or "?")
+    local last    = e.__pn_last or {}
+    local nutPct  = math.floor((last.nutRatio or 1) * 100 + 0.5)
+    local adg     = last.effADG or 0
+    local t       = e.__pn_totals or {}
+    Logging.info("[PN] SIM '%s' %s | dT=%sh | Nut=%d%% | ADG=%.2f kg/d | head=%d avgW=%.2f kg",
+    name, (last.species or "?"), tostring(hours), nutPct, adg, (t.animals or 0), (t.avgWeight or 0))
+
+end
+
+if addConsoleCommand ~= nil then
+    addConsoleCommand("pnSim", "Simulate PN over time: pnSim <index> <hours|e.g. 6 or 0.5d>", "cmdSim", PN_Debug)
+end
+
 -- Toggle overlay from console
 function PN_Debug:cmdOverlay()
     if PN_UI and PN_UI.toggle then PN_UI.toggle() end

@@ -171,10 +171,19 @@ local function buildFallbackRows()
         end
       end
 
-      table.insert(rows, string.format(
-        "%s [%s] | head=%d (M:%d/F:%d, preg=%d) avgW=%skg",
-        name, species, t.animals or 0, t.bulls or 0, t.cows or 0, t.pregnant or 0, nfmt(t.avgWeight, 1)
-      ))
+	  local nutPct = 100
+	  if e.__pn_last and e.__pn_last.nutRatio then
+		nutPct = math.floor((e.__pn_last.nutRatio or 1)*100 + 0.5)
+	  end
+	  local effADG = (e.__pn_last and e.__pn_last.effADG) or 0
+
+	  table.insert(rows, string.format(
+	    "%s [%s] | head=%d (M:%d/F:%d, preg=%d) avgW=%skg | Nut=%d%% | ADG=%s kg/d",
+	    name, species, t.animals or 0, t.bulls or 0, t.cows or 0, t.pregnant or 0,
+	    nfmt(t.avgWeight, 1),
+	    nutPct, nfmt(effADG, 2)
+	  ))
+
     end
   end
 

@@ -43,36 +43,18 @@ Mission00.update = Utils.appendedFunction(Mission00.update, function(self, dt)
   if PN_UI and PN_UI.onUpdate then PN_UI.onUpdate(dt) end
   if PN_HusbandryPatch and PN_HusbandryPatch.tick then PN_HusbandryPatch.tick(dt) end
 
-  -- >>> Nutrition tick (safe: only if scan ready and clusterSystem exposes data)
-  if PN_HusbandryScan and PN_HusbandryScan.isReady and PN_HusbandryScan:isReady()
-     and PN_Core and PN_Core.updateHusbandry then
-    local list = PN_HusbandryScan.getAll()
-    for _, e in ipairs(list) do
-      local cs = e.clusterSystem
-      if cs and cs.getClusters then
-        local ok, clusters = pcall(cs.getClusters, cs)
-        if ok and type(clusters) == "table" then
-          -- Example: count animals (works even before we know exact keys)
-          local total = 0
-          for _, c in pairs(clusters) do
-            local n = nil
-            if type(c) == "table" then
-              -- Candidates often seen: numAnimals, count, size
-              n = c.numAnimals or c.count or c.size
-              if n == nil and c.getNumAnimals then
-                local ok2, vn = pcall(c.getNumAnimals, c)
-                if ok2 then n = vn end
-              end
-            end
-            if type(n) == "number" then total = total + n end
-          end
-
-          -- Hand off to PN core (pass dt each frame)
-          pcall(PN_Core.updateHusbandry, PN_Core, e, cs, dt, { totalAnimals = total })
-        end
-      end
+ -- >>> Nutrition tick (lightweight — PN_Core does the cluster work)
+if PN_HusbandryScan and PN_HusbandryScan.isReady and PN_HusbandryScan:isReady()
+   and PN_Core and PN_Core.updateHusbandry then
+  local list = PN_HusbandryScan.getAll()
+  for _, e in ipairs(list) do
+    local cs = e.clusterSystem
+    if cs ~= nil then
+      pcall(PN_Core.updateHusbandry, PN_Core, e, cs, dt, {})
     end
   end
+end
+
   -- <<< end nutrition tick
 end)
 
