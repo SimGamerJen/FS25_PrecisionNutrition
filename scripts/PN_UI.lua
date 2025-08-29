@@ -21,7 +21,12 @@ end
 function PN_UI.pushBarnStat(owner, name, stats)
   local id = tostring(owner or "barn")
   PN_UI.barns[id] = {
-    name    = name or ("Barn@"..id),
+    name    = name or (function()
+      if PN_ScanResults ~= nil then
+        for _,r in pairs(PN_ScanResults) do if tostring(r.placeable) == id or tostring(r.id) == id then return r.name end end
+      end
+      return ("Barn@"..id)
+    end)(),
     adg     = stats.adg or 0,
     intake  = stats.intakePH or 0,
     balance = stats.balance or 0,

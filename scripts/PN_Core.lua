@@ -78,4 +78,51 @@ function PN_Core.calcTick(animalType, ageMonths, consumedByFillType, nAnimals, d
   return { adg=adg, stage=stage, intakePH=intakePH, forageShare=forageShare, balance=bal }
 end
 
+-- === PN live per-husbandry update (safe) ===
+function PN_Core:updateHusbandry(entry, clusterSystem, dtMs, ctx)
+    if clusterSystem == nil or clusterSystem.getClusters == nil then return end
+
+    local ok, clusters = pcall(clusterSystem.getClusters, clusterSystem)
+    if not ok or type(clusters) ~= "table" then return end
+
+    -- Aggregate simple stats (gender, pregnancy, weight)
+    local totals = {
+        animals = 0, bulls = 0, cows = 0, pregnant = 0,
+        weightSum = 0, bySubType = {}
+    }
+
+    for _, c in pairs(clusters) do
+        if type(c) == "table" and not c.isDead then
+            totals.animals = totals.animals + 1
+            local g = tostring(c.gender or ""):lower()
+            if g == "male" then totals.bulls = totals.bulls + 1 end
+            if g == "female" then
+                totals.cows = totals.cows + 1
+                if c.isPregnant then totals.pregnant = totals.pregnant + 1 end
+            end
+            local w = tonumber(c.weight or 0) or 0
+            totals.weightSum = totals.weightSum + w
+
+            local st = tostring(c.subType or "?")
+            totals.bySubType[st] = (totals.bySubType[st] or 0) + 1
+        end
+    end
+    totals.avgWeight = (totals.animals > 0) and (totals.weightSum / totals.animals) or 0
+
+    -- TODO: when intake math is wired, compute consumedByFillType and call your calcTick(...)
+    -- Example placeholder:
+    -- local consumed = ctx and ctx.consumedByFillType or {}
+    -- local ageMonths = ctx and ctx.avgAgeM or 18
+    -- local res = PN_Core.calcTick and PN_Core.calcTick("COW", ageMonths, consumed, totals.animals, dtMs) or nil
+    -- entry.__pn_last = res
+
+    -- Temporary heartbeat so you see something in the log:
+    if totals.animals > 0 and (g_time % 3000) < (dtMs or 0) then
+        Logging.info("[PN] %s | head=%d (♂%d / ♀%d, preg=%d) avgW=%.1fkg",
+            tostring(entry.name), totals.animals, totals.bulls, totals.cows, totals.pregnant, totals.avgWeight)
+    end
+
+    entry.__pn_totals = totals
+end
+
 return PN_Core
