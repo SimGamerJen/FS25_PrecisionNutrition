@@ -62,3 +62,10 @@ Mission00.draw = Utils.appendedFunction(Mission00.draw, function(self)
   if PN_VERBOSE_TICKS then Logging.info("[PN] Draw hook tick") end
   if PN_UI and PN_UI.onDraw then PN_UI.onDraw() end
 end)
+
+-- Forward key events so Alt+N works even without modDesc bindings
+Mission00.keyEvent = Utils.appendedFunction(Mission00.keyEvent, function(self, unicode, sym, modifier, isDown, isUp, isRepeat)
+    if PN_UI and PN_UI.onKeyEvent then
+        PN_UI.onKeyEvent(unicode, sym, modifier, isDown, isUp, isRepeat)
+    end
+end)

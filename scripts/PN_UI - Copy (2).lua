@@ -10,32 +10,6 @@ PN_UI = {
   _rescanOnce = false,   -- trigger one rescan if list is empty
 }
 
-PN_UI = PN_UI or {}
-PN_UI.cfg = PN_UI.cfg or {
-  useSupplyFactor = true,
-  refreshThrottleMs = 1000,     -- 0 = no throttle (refresh every frame)
-  addSpacerBetweenBarns = true,
-}
-
--- Let PN_Settings override defaults if present
-if PN_Settings and PN_Settings.ui then
-  if PN_Settings.ui.overlayRefreshMs ~= nil then
-    PN_UI.cfg.refreshThrottleMs = tonumber(PN_Settings.ui.overlayRefreshMs) or PN_UI.cfg.refreshThrottleMs
-  end
-  if PN_Settings.ui.addSpacerBetweenBarns ~= nil then
-    PN_UI.cfg.addSpacerBetweenBarns = (PN_Settings.ui.addSpacerBetweenBarns == true)
-  end
-end
-if PN_Settings and PN_Settings.adg and PN_Settings.adg.useSupplyFactor ~= nil then
-  PN_UI.cfg.useSupplyFactor = (PN_Settings.adg.useSupplyFactor == true)
-end
-
-local function _nowMs()
-  if g_currentMission and g_currentMission.time then return g_currentMission.time end
-  if getTimeMs then return getTimeMs() end
-  return (os.time() or 0) * 1000
-end
-
 -- --- farm helpers ---
 local function _getMyFarmId()
   if g_currentMission ~= nil then
@@ -207,14 +181,9 @@ function PN_UI._feedSummaryLines(entry)
   table.sort(items, function(a,b) return (a.dmKg or 0) > (b.dmKg or 0) end)
 
   -- Days of feed left at current demand (use PN totals snapshot)
-  local subj = (entry and entry.placeable) or entry
-  local t = (subj and subj.__pn_totals) or entry.__pn_totals or {}
-  if (not t or next(t) == nil) and PN_Core and PN_Core.getTotals and subj then
-    local okT, tt = pcall(PN_Core.getTotals, subj)
-    if okT and type(tt) == "table" then t = tt end
-  end
-  local head = tonumber(t.animals or t.head or 0) or 0
-  local DMIperHead = tonumber(t.DMIt or t.intakeKgHd or 0) or 0
+  local t = entry.__pn_totals or {}
+  local head = tonumber(t.animals or 0) or 0
+  local DMIperHead = tonumber(t.DMIt or 0) or 0   -- per-head daily DM target captured by PN_Core
   local reqPerDay = DMIperHead * head
   local daysLeft = (reqPerDay > 0) and (totalDmKg / reqPerDay) or 0
 
@@ -231,74 +200,6 @@ function PN_UI._feedSummaryLines(entry)
   end
 
   return lines
-end
-
-
-
-local function _dmDemandKgHd(species, stage)
-  if PN_Core and PN_Core.nutritionForStage then
-    local okN, row = pcall(PN_Core.nutritionForStage, PN_Core, species, stage)
-    if okN and type(row)=="table" then
-      local v = tonumber(row.dmDemandKgHd or row.intakeKgHd or 0)
-      if v and v > 0 then return v end
-    end
-  end
-  return 0
-end
-
-local function _barnAvailableDmKg(entry)
-  local p = entry and entry.placeable
-  if not p then return 0 end
-  local total = 0
-
-  -- Prefer spec_fillUnit if present (per-unit per-fillType levels)
-  if p.spec_fillUnit and p.spec_fillUnit.fillUnits then
-    for _, fu in ipairs(p.spec_fillUnit.fillUnits) do
-      local levels = fu and fu.fillLevels
-      if type(levels) == "table" then
-        for ftIndex, L in pairs(levels) do
-          local liters = tonumber(L or 0) or 0
-          if liters > 0 then
-            local mpl = 1.0
-            if g_fillTypeManager and g_fillTypeManager.fillTypes and g_fillTypeManager.fillTypes[ftIndex] then
-              mpl = tonumber(g_fillTypeManager.fillTypes[ftIndex].massPerLiter or 1.0) or 1.0
-            end
-            local name = _ftNameByIndex(ftIndex)
-            local token = _u(name)
-            if PN_Core and PN_Core.feedAliases and PN_Core.feedAliases[token] then
-              token = _u(PN_Core.feedAliases[token])
-            end
-            local fmRow = PN_Core and PN_Core.feedMatrix and PN_Core.feedMatrix[token] or nil
-            local dmFrac = (fmRow and fmRow.dm) and tonumber(fmRow.dm) or 0
-            total = total + (liters * mpl * dmFrac)
-          end
-        end
-      end
-    end
-  end
-
-  -- Fallback: spec_husbandryFood.fillLevels (aggregate liters by FT)
-  if total == 0 and p.spec_husbandryFood and p.spec_husbandryFood.fillLevels then
-    for ftIndex, L in pairs(p.spec_husbandryFood.fillLevels) do
-      local liters = tonumber(L or 0) or 0
-      if liters > 0 then
-        local mpl = 1.0
-        if g_fillTypeManager and g_fillTypeManager.fillTypes and g_fillTypeManager.fillTypes[ftIndex] then
-          mpl = tonumber(g_fillTypeManager.fillTypes[ftIndex].massPerLiter or 1.0) or 1.0
-        end
-        local name = _ftNameByIndex(ftIndex)
-        local token = _u(name)
-        if PN_Core and PN_Core.feedAliases and PN_Core.feedAliases[token] then
-          token = _u(PN_Core.feedAliases[token])
-        end
-        local fmRow = PN_Core and PN_Core.feedMatrix and PN_Core.feedMatrix[token] or nil
-        local dmFrac = (fmRow and fmRow.dm) and tonumber(fmRow.dm) or 0
-        total = total + (liters * mpl * dmFrac)
-      end
-    end
-  end
-
-  return total
 end
 
 -- Build three lines (female-open, female-preg, male) using per-group snapshot when available.
@@ -348,147 +249,135 @@ local function makeSplitRows(e)
     end
   end
 
-  -- Compute live supply factor from trough: available DM vs today's requirement (0..1)
-  local supplyF = 1.0
-  if PN_UI.cfg.useSupplyFactor then
-    supplyF = (function()
-      local avail = _barnAvailableDmKg(e)
-      local req = 0
-      req = req + _dmDemandKgHd(species, "LACT") * (derived.femaleOpen.n or 0)
-      req = req + _dmDemandKgHd(species, "GEST") * (derived.femalePreg.n or 0)
-      req = req + _dmDemandKgHd(species, "BULL") * (derived.male.n       or 0)
-      if req <= 0 then return 1.0 end
-      local f = avail / req
-      if f < 0 then f = 0 elseif f > 1 then f = 1 end
-      return f
-    end)()
-  end
-
   -- Helper to extract a live group snapshot or fallback
   local function snap(key, fallbackStage)
-    local gtbl = e.__pn_groups or {}
-    local s = gtbl[key]                          -- snapshot (may exist but n==0)
-    local d = derived[key] or { n=0, preg=0, avgW=0 }  -- live derived
+    local s = g[key]
+    if s then
+      return {
+        n    = tonumber(s.n or 0) or 0,
+        preg = tonumber(s.preg or 0) or 0,
+        avgW = tonumber(s.avgW or 0) or 0,
+        nut  = tonumber(s.nut or 0) or 0,
+        adg  = tonumber(s.adg or 0) or 0,
+        stage= tostring(s.stage or fallbackStage or "?"),
+      }
+	else
+	  local d = derived[key] or { n=0, preg=0, avgW=0 }
 
-	-- Barn-level Nut ratio (0..1): prefer WRAPPER snapshot, then totals (on wrapper)
-	local barnNut = 0
-	if e and e.__pn_last and e.__pn_last.nutRatio ~= nil then
+	  -- Barn-level Nut ratio (0..1): prefer last snapshot, fall back to totals
+	  local barnNut = 0
+	  if e and e.__pn_last and e.__pn_last.nutRatio ~= nil then
 		barnNut = tonumber(e.__pn_last.nutRatio) or 0
-	elseif PN_Core and PN_Core.getTotals then
+	  elseif PN_Core and PN_Core.getTotals then
 		local okT, totals = pcall(PN_Core.getTotals, e)
 		if okT and type(totals) == "table" then
-			barnNut = tonumber(totals.nut or 0) or 0
+		  barnNut = tonumber(totals.nut or 0) or 0
 		end
-	end
-if barnNut < 0 then barnNut = 0 elseif barnNut > 1 then barnNut = 1 end
--- Logging.info("[PN] UI Nut check: barnNut=%.3f (e=%s)", barnNut, tostring(e and e.name))
-
-    -- Stage (normalize to model’s expectations)
-    local sex    = (key == "male") and "male" or "female"
-    local isPreg = (key == "femalePreg")
-    local stage  = fallbackStage or "?"
-    if PN_Core and PN_Core.stageLabel then
-      local okS, lbl = pcall(PN_Core.stageLabel, PN_Core, species, sex, isPreg)
-      if okS and type(lbl) == "string" and lbl ~= "" then stage = lbl end
-    end
-    -- Normalize for cows; generic for others
-    if (tostring(species or ""):upper() == "COW") then
-      if key == "femaleOpen" then stage = "LACT"
-      elseif key == "femalePreg" then stage = "GEST"
-      elseif key == "male" then stage = "BULL" end
-    else
-      if key == "male" then stage = "MALE"
-      elseif key == "femalePreg" then stage = "PREG"
-      else stage = "FEMALE" end
-    end
-
-    -- Choose the source of headcount & avgW:
-    -- If snapshot exists AND has n>0, use it; otherwise prefer live derived
-    local n, preg, avgW = 0, 0, 0
-    if s and ((tonumber(s.n or 0) or 0) > 0) then
-      n    = tonumber(s.n or 0) or 0
-      preg = tonumber(s.preg or 0) or 0
-      avgW = tonumber(s.avgW or 0) or 0
-    else
-      n    = tonumber(d.n or 0) or 0
-      preg = tonumber(d.preg or 0) or 0
-      avgW = tonumber(d.avgW or 0) or 0
-    end
-
-    -- Base ADG from model (base × nut)
-    local adg = 0.10 * barnNut
-    if PN_Core and PN_Core.adgFor then
-      local okG, g = pcall(PN_Core.adgFor, PN_Core, species, stage, avgW, barnNut)
-      if okG and type(g) == "number" then adg = g end
-    end
-
-    -- Maturity taper (same as in PN_Core.updateHusbandry)
-    do
-      local mk
-      if PN_Core and PN_Core.meta then
-        local m = PN_Core.meta[(tostring(species or "COW")):upper()]
-        mk = m and tonumber(m.matureKg)
-      end
-      if mk and mk > 0 and avgW > 0 then
-        local frac    = math.max(0, math.min(1, avgW / mk))
-        local reserve = math.max(0.10, 1.0 - (frac ^ 1.6))
-        adg = adg * reserve
-      end
-    end
-
-    -- Apply live supply factor for the barn (computed once per barn above)
-	adg = adg * (supplyF or 1.0)
-
-	-- Optional negative ADG when supply is short
-	local allowNeg = (PN_Settings and PN_Settings.adg and PN_Settings.adg.allowNegative == true)
-	if allowNeg then
-	  local deficit = 1 - (supplyF or 1.0)
-	  if deficit > 0 then
-		local penalty = ((PN_Settings.adg.starvationPenaltyKg or 0.05) * deficit)
-		adg = adg - penalty
 	  end
-	else
-	  if adg < 0 then adg = 0 end
+	  if barnNut < 0 then barnNut = 0 elseif barnNut > 1 then barnNut = 1 end
+
+	  -- Normalize stage for ADG model (maps to LACT/GEST/BULL for cows)
+	  local stage = tostring(fallbackStage or "?")
+	  if tostring(species or ""):upper() == "COW" then
+		if key == "femaleOpen" then
+		  stage = "LACT"
+		elseif key == "femalePreg" then
+		  stage = "GEST"
+		elseif key == "male" then
+		  stage = "BULL"
+		end
+	  else
+		if key == "male" then
+		  stage = "MALE"
+		elseif key == "femalePreg" then
+		  stage = "PREG"
+		else
+		  stage = "FEMALE"
+		end
+	  end
+
+	  -- ADG from model; fallback to a tiny baseline scaled by Nut
+		local adg = 0.10 * barnNut
+		if PN_Core and PN_Core.adgFor then
+		  local okG, g = pcall(PN_Core.adgFor, PN_Core, species, stage, d.avgW or 0, barnNut)
+		  if okG and type(g) == "number" then adg = g end
+		end
+
+		-- maturity taper (same as PN_Core.updateHusbandry)
+		local mk
+		if PN_Core and PN_Core.meta then
+		  local m = PN_Core.meta[(tostring(species or "COW")):upper()]
+		  mk = m and tonumber(m.matureKg)
+		end
+		if mk and mk > 0 and (d.avgW or 0) > 0 then
+		  local frac    = math.max(0, math.min(1, (d.avgW or 0) / mk))
+		  local reserve = math.max(0.10, 1.0 - (frac ^ 1.6))
+		  adg = adg * reserve
+		end
+
+	  return {
+		n = d.n, preg = d.preg, avgW = d.avgW,
+		nut = barnNut, adg = adg, stage = stage
+	  }
 	end
 
-    return { n = n, preg = preg, avgW = avgW, nut = barnNut, adg = adg, stage = stage }
   end
 
-  -- Compose lines
-  local femaleOpen = snap("femaleOpen", (PN_Core and PN_Core.stageLabel and PN_Core:stageLabel(species,"female",false)) or "OPEN")
-  local femalePreg = snap("femalePreg", (PN_Core and PN_Core.stageLabel and PN_Core:stageLabel(species,"female",true )) or "PREG")
-  local male       = snap("male",       (PN_Core and PN_Core.stageLabel and PN_Core:stageLabel(species,"male",  false)) or "MALE")
+	local femaleOpen = snap("femaleOpen", (PN_Core and PN_Core.stageLabel and PN_Core:stageLabel(species,"female",false)) or "OPEN")
+	local femalePreg = snap("femalePreg", (PN_Core and PN_Core.stageLabel and PN_Core:stageLabel(species,"female",true )) or "PREG")
+	local male       = snap("male",       (PN_Core and PN_Core.stageLabel and PN_Core:stageLabel(species,"male",  false)) or "MALE")
 
-  if femaleOpen and (tonumber(femaleOpen.n) or 0) > 0 then
-    table.insert(rows, { gender="femaleOpen",
-      text = string.format("%s [%s/female-open] | stage=%s | head=%d preg=%d | avgW=%.2fkg | Nut=%d%% | ADG=%.3f kg/d",
-        name, species, tostring(femaleOpen.stage or "?"),
-        tonumber(femaleOpen.n or 0), tonumber(femaleOpen.preg or 0),
-        tonumber(femaleOpen.avgW or 0),
-        math.floor((tonumber(femaleOpen.nut or 0) * 100) + 0.5),
-        tonumber(femaleOpen.adg or 0))
+-- Compose lines
+if femaleOpen and (tonumber(femaleOpen.n) or 0) > 0 then
+  table.insert(rows, { gender="femaleOpen",
+    text = string.format(
+      "%s [%s/female-open] | stage=%s | head=%d preg=%d | avgW=%.2fkg | Nut=%d%% | ADG=%.3f kg/d",
+      name, species, tostring(femaleOpen.stage or "?"),
+      tonumber(femaleOpen.n or 0), tonumber(femaleOpen.preg or 0),
+      tonumber(femaleOpen.avgW or 0),
+      math.floor((tonumber(femaleOpen.nut or 0) * 100) + 0.5),
+      tonumber(femaleOpen.adg or 0)
+    )
+  })
+end
+
+if femalePreg and (tonumber(femalePreg.n) or 0) > 0 then
+  table.insert(rows, { gender="femalePreg",
+    text = string.format(
+      "%s [%s/female-preg] | stage=%s | head=%d preg=%d | avgW=%.2fkg | Nut=%d%% | ADG=%.3f kg/d",
+      name, species, tostring(femalePreg.stage or "?"),
+      tonumber(femalePreg.n or 0), tonumber(femalePreg.preg or 0),
+      tonumber(femalePreg.avgW or 0),
+      math.floor((tonumber(femalePreg.nut or 0) * 100) + 0.5),
+      tonumber(femalePreg.adg or 0)
+    )
+  })
+end
+
+if male and (tonumber(male.n) or 0) > 0 then
+  table.insert(rows, { gender="male",
+    text = string.format(
+      "%s [%s/male] | stage=%s | head=%d | avgW=%.2fkg | Nut=%d%% | ADG=%.3f kg/d",
+      name, species, tostring(male.stage or "?"),
+      tonumber(male.n or 0), tonumber(male.avgW or 0),
+      math.floor((tonumber(male.nut or 0) * 100) + 0.5),
+      tonumber(male.adg or 0)
+    )
+  })
+end
+
+  if #rows == 0 then
+    -- empty pen line (kept)
+    table.insert(rows, { gender="any",
+      text = string.format("%s [%s] | head=0 preg=0 | avgW=0.00kg | Nut=0%% | ADG=0.000 kg/d",
+                           name, species)
     })
   end
 
-  if femalePreg and (tonumber(femalePreg.n) or 0) > 0 then
-    table.insert(rows, { gender="femalePreg",
-      text = string.format("%s [%s/female-preg] | stage=%s | head=%d preg=%d | avgW=%.2fkg | Nut=%d%% | ADG=%.3f kg/d",
-        name, species, tostring(femalePreg.stage or "?"),
-        tonumber(femalePreg.n or 0), tonumber(femalePreg.preg or 0),
-        tonumber(femalePreg.avgW or 0),
-        math.floor((tonumber(femalePreg.nut or 0) * 100) + 0.5),
-        tonumber(femalePreg.adg or 0))
-    })
-  end
-
-  if male and (tonumber(male.n) or 0) > 0 then
-    table.insert(rows, { gender="male",
-      text = string.format("%s [%s/male] | stage=%s | head=%d | avgW=%.2fkg | Nut=%d%% | ADG=%.3f kg/d",
-        name, species, tostring(male.stage or "?"),
-        tonumber(male.n or 0), tonumber(male.avgW or 0),
-        math.floor((tonumber(male.nut or 0) * 100) + 0.5),
-        tonumber(male.adg or 0))
-    })
+  -- Feed summary (unchanged)
+  local feedLines = PN_UI._feedSummaryLines(e)
+  for _, L in ipairs(feedLines) do
+    table.insert(rows, { gender="feed", text=L })
   end
 
   return rows
@@ -496,13 +385,6 @@ end
 
 -- ---- live fallback rows (scan + cluster data; no strict isReady gating) ----
 local function buildFallbackRows()
-  local nowMs = _nowMs()
-  local refreshMs = tonumber(PN_UI.cfg.refreshThrottleMs or 0) or 0
-  local doRefresh = (refreshMs <= 0) or (nowMs >= (PN_UI._nextRefreshAt or 0))
-  if doRefresh and refreshMs > 0 then
-    PN_UI._nextRefreshAt = nowMs + refreshMs
-  end
-
   local rows = {}
   if not PN_HusbandryScan then return rows end
 
@@ -533,25 +415,11 @@ local function buildFallbackRows()
     end
 
     if not filteredOut then
-      -- LIVE refresh snapshot (match pnBeat) — throttled
-      if doRefresh and PN_Core and PN_Core.updateHusbandry and e and e.clusterSystem ~= nil then
-        pcall(PN_Core.updateHusbandry, PN_Core, e, e.clusterSystem, 33, { source = "overlay" })
+      local splitRows = makeSplitRows(e)
+      for _, r in ipairs(splitRows) do
+        table.insert(rows, r) -- keep gender tag for coloring later
       end
-
-	  -- ANIMAL split rows first (keep your existing order)
-	  local splitRows = makeSplitRows(e)
-	  for _, r in ipairs(splitRows) do
-		table.insert(rows, r)
-	  end
-
-	  -- FEED summary after animals (as you set it)
-	  local feedLines = PN_UI._feedSummaryLines(e)
-	  for _, s in ipairs(feedLines) do
-		table.insert(rows, { gender = "feed", text = s })
-	  end
-	  
-	  table.insert(rows, { gender = "feed", text = " " })
-	end
+    end
   end
 
   return rows

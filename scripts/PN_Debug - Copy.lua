@@ -132,13 +132,6 @@ end
 
 -- ---------- force a heartbeat once ----------
 function PN_Debug:cmdBeat(idxStr)
-	local function _adgSupplyEnabled()
-	  if PN_Settings and PN_Settings.adg and PN_Settings.adg.useSupplyFactor ~= nil then
-		return (PN_Settings.adg.useSupplyFactor == true)
-	  end
-	  return true
-	end
-
     if PN_HusbandryScan == nil or PN_HusbandryScan.getAll == nil or PN_Core == nil or PN_Core.updateHusbandry == nil then
         Logging.info("[PN] pnBeat: PN not ready")
         return
@@ -155,10 +148,10 @@ function PN_Debug:cmdBeat(idxStr)
         return
     end
 
-    -- Refresh PN snapshot so nut/totals are current
+    -- Force a one-tick update to refresh PN snapshots
     pcall(PN_Core.updateHusbandry, PN_Core, e, e.clusterSystem, 33, { forceBeat = true })
 
-    -- Species inference
+    -- Derive species
     local function inferSpecies(entry)
         local function norm(s)
             s = tostring(s or ""):upper()
@@ -187,283 +180,70 @@ function PN_Debug:cmdBeat(idxStr)
     local species = inferSpecies(e)
     local name    = tostring(e.name or "?")
 
-    -- Split counts from live clusters
-    local counts = { femaleOpen=0, femalePreg=0, male=0 }
-    local wsum   = { femaleOpen=0, femalePreg=0, male=0 }
-    local okC, clusters = pcall(e.clusterSystem.getClusters, e.clusterSystem)
-    if okC and type(clusters) == "table" then
+    -- Count per sex with pregnancy + avg weights
+    local counts = { female = 0, male = 0 }
+    local preg   = { female = 0, male = 0 }
+    local wsum   = { female = 0, male = 0 }
+
+    local cs = e.clusterSystem
+    local ok, clusters = pcall(cs.getClusters, cs)
+    if ok and type(clusters) == "table" then
         for _, c in pairs(clusters) do
             if type(c) == "table" and not c.isDead then
                 local gsex = tostring(c.gender or ""):lower()
                 local w    = tonumber(c.weight or 0) or 0
                 if gsex == "female" then
-                    if c.isPregnant then
-                        counts.femalePreg = counts.femalePreg + 1
-                        wsum.femalePreg   = wsum.femalePreg + w
-                    else
-                        counts.femaleOpen = counts.femaleOpen + 1
-                        wsum.femaleOpen   = wsum.femaleOpen + w
-                    end
+                    counts.female = counts.female + 1
+                    wsum.female   = wsum.female + w
+                    if c.isPregnant then preg.female = preg.female + 1 end
                 elseif gsex == "male" then
                     counts.male = counts.male + 1
                     wsum.male   = wsum.male + w
+                    if c.isPregnant then preg.male = preg.male + 1 end
                 end
             end
         end
     end
-    local avgW = {
-        femaleOpen = (counts.femaleOpen>0) and (wsum.femaleOpen / counts.femaleOpen) or 0,
-        femalePreg = (counts.femalePreg>0) and (wsum.femalePreg / counts.femalePreg) or 0,
-        male       = (counts.male>0)       and (wsum.male       / counts.male)       or 0,
+
+    local avg = {
+        female = (counts.female > 0) and (wsum.female / counts.female) or 0,
+        male   = (counts.male   > 0) and (wsum.male   / counts.male)   or 0,
     }
 
-    -- Barn-level Nut ratio (0..1)
-    local barnNut = 0
-    if e.__pn_last and e.__pn_last.nutRatio ~= nil then
-        barnNut = tonumber(e.__pn_last.nutRatio) or 0
-    elseif PN_Core and PN_Core.getTotals then
-        local okT, totals = pcall(PN_Core.getTotals, e)
-        if okT and type(totals) == "table" then
-            barnNut = tonumber(totals.nut or 0) or 0
-        end
-    end
-    if barnNut < 0 then barnNut = 0 elseif barnNut > 1 then barnNut = 1 end
+    -- Pull PN per-group snapshots if present
+    local g = e.__pn_groups
+    local fNut, fADG, fStage = 0, 0, "?"
+    local mNut, mADG, mStage = 0, 0, "?"
 
-    -- Live available DM in trough (kg) — robust to either e.placeable.* or e.* specs
-    local function fillTypeNameByIndex(idx)
-        if g_fillTypeManager and g_fillTypeManager.getFillTypeNameByIndex then
-            local n = g_fillTypeManager:getFillTypeNameByIndex(idx)
-            if n and n ~= "" then return n end
-        end
-        return "FT:"..tostring(idx)
+    if g and g.female then
+        fNut   = math.floor(((g.female.nut or 0) * 100) + 0.5)
+        fADG   = g.female.adg or 0
+        fStage = g.female.stage or fStage
     end
-    local function barnAvailableDmKg(entry)
-        local p = (entry and entry.placeable) or entry
-        if not p then return 0 end
-        local total = 0
-        -- Preferred: spec_fillUnit.fillUnits[*].fillLevels[ft] = liters
-        if p.spec_fillUnit and p.spec_fillUnit.fillUnits then
-            for _, fu in ipairs(p.spec_fillUnit.fillUnits) do
-                local levels = fu and fu.fillLevels
-                if type(levels) == "table" then
-                    for ftIndex, L in pairs(levels) do
-                        local liters = tonumber(L or 0) or 0
-                        if liters > 0 then
-                            local mpl = 1.0
-                            if g_fillTypeManager and g_fillTypeManager.fillTypes and g_fillTypeManager.fillTypes[ftIndex] then
-                                mpl = tonumber(g_fillTypeManager.fillTypes[ftIndex].massPerLiter or 1.0) or 1.0
-                            end
-                            local nameU = tostring(fillTypeNameByIndex(ftIndex)):upper()
-                            local dmFrac = nil
-                            if PN_Core and PN_Core.feedAliases and PN_Core.feedAliases[nameU] and PN_Core.feedAliases[nameU].dmFrac then
-                                dmFrac = tonumber(PN_Core.feedAliases[nameU].dmFrac)
-                            elseif PN_Core and PN_Core.tokenForFillTypeIndex then
-                                local okTok, tok = pcall(PN_Core.tokenForFillTypeIndex, PN_Core, ftIndex)
-                                if okTok and tok and PN_Core.feedTable and PN_Core.feedTable[tok] and PN_Core.feedTable[tok].dmFrac then
-                                    dmFrac = tonumber(PN_Core.feedTable[tok].dmFrac)
-                                end
-                            end
-                            dmFrac = dmFrac or 0
-                            total = total + (liters * mpl * dmFrac)
-                        end
-                    end
-                end
-            end
-        end
-        -- Fallback: spec_husbandryFood.fillLevels[ft] = liters
-        if total == 0 and p.spec_husbandryFood and p.spec_husbandryFood.fillLevels then
-            for ftIndex, L in pairs(p.spec_husbandryFood.fillLevels) do
-                local liters = tonumber(L or 0) or 0
-                if liters > 0 then
-                    local mpl = 1.0
-                    if g_fillTypeManager and g_fillTypeManager.fillTypes and g_fillTypeManager.fillTypes[ftIndex] then
-                        mpl = tonumber(g_fillTypeManager.fillTypes[ftIndex].massPerLiter or 1.0) or 1.0
-                    end
-                    local nameU = tostring(fillTypeNameByIndex(ftIndex)):upper()
-                    local dmFrac = nil
-                    if PN_Core and PN_Core.feedAliases and PN_Core.feedAliases[nameU] and PN_Core.feedAliases[nameU].dmFrac then
-                        dmFrac = tonumber(PN_Core.feedAliases[nameU].dmFrac)
-                    elseif PN_Core and PN_Core.tokenForFillTypeIndex then
-                        local okTok, tok = pcall(PN_Core.tokenForFillTypeIndex, PN_Core, ftIndex)
-                        if okTok and tok and PN_Core.feedTable and PN_Core.feedTable[tok] and PN_Core.feedTable[tok].dmFrac then
-                            dmFrac = tonumber(PN_Core.feedTable[tok].dmFrac)
-                        end
-                    end
-                    dmFrac = dmFrac or 0
-                    total = total + (liters * mpl * dmFrac)
-                end
-            end
-        end
-        return total
+    if g and g.male then
+        mNut   = math.floor(((g.male.nut or 0) * 100) + 0.5)
+        mADG   = g.male.adg or 0
+        mStage = g.male.stage or mStage
     end
 
-    -- Demand (kg/hd/d) for each stage
-    local function dmDemandKgHd(species, stage)
-        if PN_Core and PN_Core.nutritionForStage then
-            local okN, row = pcall(PN_Core.nutritionForStage, PN_Core, species, stage)
-            if okN and type(row)=="table" then
-                local v = tonumber(row.dmDemandKgHd or row.intakeKgHd or 0)
-                if v and v > 0 then return v end
-            end
+    if counts.female > 0 then
+        Logging.info("[PN] %s [%s/female] | stage=%s | head=%d preg=%d | avgW=%.2fkg | Nut=%s%% | ADG=%.3f kg/d",
+            name, species, tostring(fStage), counts.female, preg.female, avg.female, tostring(fNut), tonumber(fADG or 0) or 0)
+    end
+    if counts.male > 0 then
+        Logging.info("[PN] %s [%s/male] | stage=%s | head=%d preg=%d | avgW=%.2fkg | Nut=%s%% | ADG=%.3f kg/d",
+            name, species, tostring(mStage), counts.male, preg.male, avg.male, tostring(mNut), tonumber(mADG or 0) or 0)
+    end
+    if counts.female == 0 and counts.male == 0 then
+        -- fall back to barn-level if empty
+        local nutPct, adg = 0, 0
+        if e.__pn_last then
+          nutPct = math.floor(((e.__pn_last.nutRatio or 0) * 100) + 0.5)
+          adg    = tonumber(e.__pn_last.effADG or 0) or 0
         end
-        return 0
+        Logging.info("[PN] %s [%s] | head=0 preg=0 | avgW=0.00kg | Nut=%d%% | ADG=%.3f kg/d",
+            name, species, nutPct, adg)
     end
-
-    -- Supply factor from available DM vs required DM (0..1)
-    local function supplyFactorBarn(entry, species, counts)
-        local avail = barnAvailableDmKg(entry)
-        local req = 0
-        req = req + dmDemandKgHd(species, "LACT") * (counts.femaleOpen or 0)
-        req = req + dmDemandKgHd(species, "GEST") * (counts.femalePreg or 0)
-        req = req + dmDemandKgHd(species, "BULL") * (counts.male       or 0)
-        if req <= 0 then return 1.0 end
-        local f = avail / req
-        if f < 0 then f = 0 elseif f > 1 then f = 1 end
-        return f
-    end
-
-    -- Stage label for ADG model
-    local function stageFor(key)
-        local sex  = (key == "male") and "male" or "female"
-        local isPr = (key == "femalePreg")
-        if PN_Core and PN_Core.stageLabel then
-            local okS, lbl = pcall(PN_Core.stageLabel, PN_Core, species, sex, isPr)
-            if okS and type(lbl) == "string" and lbl ~= "" then return lbl end
-        end
-        if species == "COW" then
-            if sex == "male" then return "BULL" end
-            return isPr and "GEST" or "LACT"
-        end
-        if sex == "male" then return "MALE" end
-        return isPr and "PREG" or "FEMALE"
-    end
-
-    -- Maturity reserve (same as PN_Core.updateHusbandry)
-    local function maturityReserve(species, avgW)
-        local mk
-        if PN_Core and PN_Core.meta then
-            local m = PN_Core.meta[(tostring(species or "COW")):upper()]
-            mk = m and tonumber(m.matureKg)
-        end
-        if mk and mk > 0 and (avgW or 0) > 0 then
-            local frac = math.max(0, math.min(1, (avgW or 0)/mk))
-            return math.max(0.10, 1.0 - (frac ^ 1.6))
-        end
-        return 1.0
-    end
-
-	local supplyF = 1.0
-	if _adgSupplyEnabled() then
-	  supplyF = supplyFactorBarn(e, species, counts)
-	end
-
-    local function adgFor(stage, w)
-        local a = 0.10 * barnNut
-        if PN_Core and PN_Core.adgFor then
-            local okG, g = pcall(PN_Core.adgFor, PN_Core, species, stage, w or 0, barnNut)
-            if okG and type(g) == "number" then a = g end
-        end
-        a = a * maturityReserve(species, w) * (supplyF or 1.0)
-	local allowNeg = (PN_Settings and PN_Settings.adg and PN_Settings.adg.allowNegative == true)
-	if allowNeg then
-	  local deficit = 1 - (supplyF or 1.0)
-	  if deficit > 0 then
-		local penalty = ((PN_Settings.adg.starvationPenaltyKg or 0.05) * deficit)
-		a = a - penalty
-	  end
-	else
-	  if a < 0 then a = 0 end
-	end
-        return a
-    end
-
-    local rows = {
-        { key="female-open", n=counts.femaleOpen, avgW=avgW.femaleOpen, stage=stageFor("femaleOpen"), preg=0 },
-        { key="female-preg", n=counts.femalePreg, avgW=avgW.femalePreg, stage=stageFor("femalePreg"), preg=counts.femalePreg },
-        { key="male",        n=counts.male,       avgW=avgW.male,       stage=stageFor("male"),       preg=0 },
-    }
-
-    for _, r in ipairs(rows) do
-        if (r.n or 0) > 0 then
-            local g = adgFor(r.stage, r.avgW)
-            if r.key ~= "male" then
-                Logging.info("[PN] %s [%s/%s] | stage=%s | head=%d preg=%d | avgW=%.2fkg | Nut=%d%% | ADG=%.3f kg/d",
-                    name, species, r.key, r.stage, r.n, (r.preg or 0), r.avgW, math.floor(barnNut*100 + 0.5), g)
-            else
-                Logging.info("[PN] %s [%s/%s] | stage=%s | head=%d | avgW=%.2fkg | Nut=%d%% | ADG=%.3f kg/d",
-                    name, species, r.key, r.stage, r.n, r.avgW, math.floor(barnNut*100 + 0.5), g)
-            end
-        end
-    end
-end
-
-function PN_Debug:cmdClearFeed(idxStr, pctStr)
-  if PN_HusbandryScan == nil or PN_HusbandryScan.getAll == nil then
-    Logging.info("[PN] pnClearFeed: PN not ready"); return
-  end
-  local idx = tonumber(idxStr or "")
-  if idx == nil then
-    Logging.info("[PN] Usage: pnClearFeed <index> [percent 0..100]  (see pnDumpHusbandries)"); return
-  end
-  local pct = tonumber(pctStr or "100") or 100
-  if pct < 0 then pct = 0 elseif pct > 100 then pct = 100 end
-  local list = PN_HusbandryScan.getAll()
-  local e = list and list[idx]
-  if not e then Logging.info("[PN] pnClearFeed: no entry at index %s", tostring(idx)); return end
-
-  local p = (e.placeable or e)
-  local removedL = 0
-
-  local function _massPerL(ftIndex)
-    if g_fillTypeManager and g_fillTypeManager.fillTypes and g_fillTypeManager.fillTypes[ftIndex] then
-      return tonumber(g_fillTypeManager.fillTypes[ftIndex].massPerLiter or 1.0) or 1.0
-    end
-    return 1.0
-  end
-
-  -- Try API first (preferred), otherwise fall back to raw table edits
-  local canAPI = (p.addFillUnitFillLevel ~= nil)
-
-  -- 1) spec_fillUnit per-unit levels
-  if p.spec_fillUnit and p.spec_fillUnit.fillUnits then
-    for unitIndex, fu in ipairs(p.spec_fillUnit.fillUnits) do
-      local levels = fu and fu.fillLevels
-      if type(levels) == "table" then
-        for ftIndex, liters in pairs(levels) do
-          local L = tonumber(liters or 0) or 0
-          if L > 0 then
-            local take = L * (pct/100)
-            if canAPI then
-              p:addFillUnitFillLevel(nil, unitIndex, -take, ftIndex, ToolType.UNDEFINED)
-            else
-              levels[ftIndex] = L - take
-            end
-            removedL = removedL + take
-          end
-        end
-      end
-    end
-  end
-
-  -- 2) spec_husbandryFood aggregate levels (fallback)
-  if p.spec_husbandryFood and p.spec_husbandryFood.fillLevels then
-    for ftIndex, liters in pairs(p.spec_husbandryFood.fillLevels) do
-      local L = tonumber(liters or 0) or 0
-      if L > 0 then
-        local take = L * (pct/100)
-        p.spec_husbandryFood.fillLevels[ftIndex] = L - take
-        removedL = removedL + take
-      end
-    end
-  end
-
-  -- Refresh PN snapshot so overlay updates right away
-  if PN_Core and PN_Core.updateHusbandry and e and e.clusterSystem then
-    pcall(PN_Core.updateHusbandry, PN_Core, e, e.clusterSystem, 33, { source="pnClearFeed" })
-  end
-
-  Logging.info("[PN] Cleared %.0f%% feed in '%s' (%.0f L total; ~%.0f kg)", pct, tostring(e.name or "?"),
-    removedL, removedL * _massPerL(1))
 end
 
 -- Set heartbeat period or disable it: pnHeartbeat <ms|off>
@@ -980,10 +760,6 @@ if addConsoleCommand ~= nil then
     addConsoleCommand("pnHeartbeat",
         "Set PN heartbeat period in ms, or 'off' to disable",
         "cmdHeartbeat", PN_Debug)
-		
-    addConsoleCommand("pnClearFeed",
-		"Clear X% of feed in a barn. Usage: pnClearFeed <index> [percent 0..100] (default 100)",
-		"cmdClearFeed", PN_Debug)
 
     Logging.info("[PN] Console commands: pnDumpHusbandries, pnDumpHusbandriesCSV, pnInspect, pnInspectClusters, pnBeat, pnOverlay, pnHeartbeat")
 else
