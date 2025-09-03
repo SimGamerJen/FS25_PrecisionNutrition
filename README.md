@@ -6,13 +6,13 @@ This gameplay mod links your barn’s feed supply directly to **Average Daily Ga
 
 ---
 
-## ✨ Features (v0.3.0-alpha)
+## ✨ Features (v0.3.2-alpha)
 
 * **Nutrition → Growth:** Barn-level nutrition ratio drives ADG.  
 * **Safe trough behaviour:** Empty troughs force `Nut = 0 → ADG = 0 → avgWeight` declines.  
 * **Stage-aware baseline:** Growth varies by stage (lact, gest, bull) with conservative defaults.  
 * **Realistic Livestock integration:** Detected automatically; PN applies compatibility multipliers.  
-* **Console command support** for testing (`pnClearFeed`).  
+* **Console command support** for testing (`pnClearFeed`, `pnDumpHusbandries`, `pnInspectTrough`, `pnFindFeeder`, `pnBeat`, `pnHeartBeat`).  
 
 ⚠️ **Limitations in this build:**  
 - All feed is treated as generic “forage.” Specialised food groups (energy grains, protein grains, fibre, starch) will arrive in later builds.  
@@ -30,6 +30,7 @@ This gameplay mod links your barn’s feed supply directly to **Average Daily Ga
 Documents/My Games/Farming Simulator 25/mods
 
 ```
+
 2. Enable **Precision Nutrition** in the mod list.  
 3. Optional: also enable **Realistic Livestock** — PN will adapt automatically.  
 4. On save load, look for:
@@ -43,21 +44,113 @@ Documents/My Games/Farming Simulator 25/mods
 
 ---
 
-## 🎮 Console Commands
+## 🎮 Console Commands (0.3.2-alpha)
 
-### `pnClearFeed <barnId> <percent>`
-Reduce or clear feed from a barn’s troughs.
+> **Tip on `<index>`:** Run `pnDumpHusbandries` first to list PN entries and their indices. Most commands take that index.
 
-- **barnId**: Internal FS25 husbandry ID (see logs).  
-- **percent**: Percent to remove (100 = clear all).  
-- **Example:**  
-```lua
-pnClearFeed 9 100
-````
+## Discover & export
 
-→ Clears all feed from barn ID 9.
+* **`pnDumpHusbandries`**
+  List PN-scanned husbandries with index, farmId, type, and cluster presence.
 
-Effect: `Nut` immediately drops to 0, `ADG` goes to 0, and animals’ average weight trends downward.
+* **`pnDumpHusbandriesCSV`**
+  Export the list to `PN_Husbandries.csv` in your **modSettings** folder.
+
+## Inspectors
+
+* **`pnInspect <index>`** *(alias of `pnInspectHusbandry`)*
+  Inspect a PN entry: basic info, state, and wiring.
+
+* **`pnInspectHusbandry <index>`**
+  Same as above; explicit name.
+
+* **`pnInspectClusters <index>`**
+  Dump cluster membership/details for the entry.
+
+* **`pnInspectTrough <index>`**
+  Show fillUnits and current trough levels; prints accepted fillTypes if available.
+
+* **`pnInspectFoodSpec <index>`**
+  Dump `spec_husbandryFood` levels the barn exposes.
+
+* **`pnFindFeeder <index> [radiusMeters]`**
+  Locate the nearest feeder (fillUnit) placeable for the entry. Optional search radius.
+
+## Simulation & beats
+
+* **`pnBeat <index>`**
+  One-shot PN update tick for that entry (refreshes nutrition snapshot and prints a line if formatter is present).
+
+* **`pnSim <index> <hours|e.g. 6 or 0.5d>`**
+  Simulate PN over a span (hours or fractional days like `0.5d`) for the entry.
+
+* **`pnHeartbeat <ms|'off'>`**
+  Set global heartbeat period in **milliseconds** (minimum 100). Use `off` to disable.
+  Examples: `pnHeartbeat 1000`, `pnHeartbeat off`.
+
+## Feed & nutrition control
+
+* **`pnClearFeed <index> [percent 0..100]`**
+  Reduce/clear trough feed. `100` clears all.
+  Example: `pnClearFeed 9 100`.
+
+* **`pnNut <index>`**
+  Show the barn’s current nutrition ratio (0..1).
+  *(This command can also set/view in some builds; in 0.3.2 it reports.)*
+
+* **`pnCredit <index> <FILLTYPE_NAME> <kg>`**
+  Credit one-off intake to a barn and run a heartbeat.
+  Example: `pnCredit 10 WHEAT 250`.
+
+* **`pnAutoConsume <on|off>`**
+  Toggle PN’s auto consumption shim on/off.
+
+* **`pnIntakeDebug <on|off>`**
+  Toggle verbose intake logging.
+
+> *Note:* There are internal helpers in the file (`pnSetMix`, `pnClearMix`, `pnShowMix`) but they are **not registered as console commands** in this release.
+
+## Overlay & UI
+
+* **`pnOverlay`**
+  Toggle the PN overlay on/off.
+
+* **`pnOverlayMine <on|off|all>`**
+  Filter overlay to your farm only (`on`) or show all farms (`off`/`all`).
+
+## Reload & logging
+
+* **`pnPNReload`**
+  Reload PN settings/XML packs and re-init core.
+
+* **`pnSetLogLevel <TRACE|DEBUG|INFO|WARN|ERROR>`**
+  Switch PN\_Logger verbosity at runtime.
+
+## Diagnostics & repair
+
+* **`pnDiag`**
+  Print PN module readiness (what’s loaded, counts, etc.).
+
+* **`pnFixEvents`**
+  Restore `PN_Events` methods if something clobbered them.
+
+---
+
+# Optional: Conflict-Probe commands (disabled by default)
+
+> Enable by uncommenting the `PN_ConflictProbe.lua` `<sourceFile>` line in `modDesc.xml`.
+
+* **`pnProbeOn` / `pnProbeOff`** — Enable/disable probe logging.
+* **`pnProbeReport <index> [seconds]`** — Report recent events for a barn.
+* **`pnProbeBarns`** — List barns with no consumption over the last N hours.
+* **`pnProbeTrace <index> [seconds]`** — Start a 1 Hz trace for a barn.
+* **`pnProbeTraceStop <index>`** — Stop the trace and print a summary.
+* **`pnProbeTraceRpt <index>`** — Print the current trace summary.
+* **`pnProbeHooks`** — Show which engine hooks are currently installed.
+
+---
+
+⚠️ **Note:** Some commands are primarily debugging tools. Normal gameplay will run PN updates automatically — you don’t need to use these unless testing or troubleshooting.
 
 ---
 
@@ -103,6 +196,7 @@ Effect: `Nut` immediately drops to 0, `ADG` goes to 0, and animals’ average we
 
 ## 🧾 Changelog
 
+* **0.3.2-alpha** — Stable baseline; farmhouse deletion fixed; husbandry scan stable; all console commands documented.
 * **0.3.0-alpha** — First stable pre-release; core nutrition → ADG pipeline working, RL multipliers applied, trough clearing safe.
 * **0.2.x.x** — Experimental builds, not publicly released.
 * **0.1.0.x** — Early prototypes, overlay testing, safer hooks.
