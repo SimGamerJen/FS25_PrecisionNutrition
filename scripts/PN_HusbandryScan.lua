@@ -1,70 +1,125 @@
 -- FS25_PrecisionNutrition / scripts / PN_HusbandryScan.lua
--- Live discovery of animal-capable placeables via PlaceableSystem hooks.
+-- Minimal safe fix v6: passive scan, clusterSystem present, and species inference restored.
 
 PN_HusbandryScan = {}
 
 local PN_TAG   = "[PN]"
-local PN_DEBUG = true
+local PN_DEBUG = false
 
-local _isReady     = false
-local _entries     = {}
-local _byFarmIndex = {}
+-- State
+local _isReady         = false
+local _entries         = {}
+local _byFarmIndex     = {}
+local _elapsedMs       = 0
+local _rescanElapsedMs = 0
+local _bootRescanned   = false
+
+-- Tunables
+local INITIAL_DELAY_MS = 2000   -- wait ~2s after mission start
+local RESCAN_EVERY_MS  = 10000  -- refresh every ~10s
 
 -- ---------- utils ----------
 local function log(fmt, ...)
-    if PN_DEBUG then
-        Logging.info(PN_TAG .. " " .. fmt, ...)
+    if PN_DEBUG and Logging and Logging.info then
+        Logging.info(PN_TAG .. " " .. string.format(fmt, ...))
+    elseif PN_DEBUG then
+        print(PN_TAG .. " " .. string.format(fmt, ...))
     end
 end
 
-local function safeFarmId(placeable)
-    if placeable ~= nil then
-        if placeable.getOwnerFarmId ~= nil then
-            return placeable:getOwnerFarmId() or 0
-        end
-        if placeable.owningFarmId ~= nil then
-            return placeable.owningFarmId or 0
-        end
+local function safeLower(s) return (type(s)=="string" and string.lower(s)) or "" end
+
+local function isFarmhouseLike(plc)
+    if plc == nil then return false end
+    local name = safeLower(plc.typeName)
+    local cfg  = safeLower(plc.configFileName)
+    if name:find("farmhouse", 1, true) or cfg:find("farmhouse", 1, true) then return true end
+    if plc.spec_sleeping ~= nil or plc.spec_sleepTrigger ~= nil or plc.spec_farmhouse ~= nil or plc.spec_sleep ~= nil then
+        return true
+    end
+    return false
+end
+
+local function isAnimalHusbandry(plc)
+    if plc == nil then return false end
+    if plc.spec_husbandryAnimals ~= nil then return true end
+    if plc.spec_animalHusbandry   ~= nil then return true end
+    if plc.animalSystem           ~= nil then return true end
+    local t = safeLower(plc.typeName or "")
+    return t:find("husbandry", 1, true) ~= nil
+end
+
+local function getOwnerFarmId(plc)
+    if plc == nil then return 0 end
+    if plc.getOwnerFarmId ~= nil then
+        local ok, v = pcall(function() return plc:getOwnerFarmId() end)
+        if ok and v then return v end
+    end
+    if plc.ownerFarmId ~= nil then return plc.ownerFarmId end
+    return 0
+end
+
+local function getAnimalCount(plc)
+    local spec = plc and (plc.spec_husbandryAnimals or plc.spec_animalHusbandry)
+    if spec and spec.getNumOfAnimals ~= nil then
+        local ok, n = pcall(function() return spec:getNumOfAnimals() end)
+        if ok and type(n)=="number" then return n end
+    end
+    if plc and plc.getNumOfAnimals ~= nil then
+        local ok, n = pcall(function() return plc:getNumOfAnimals() end)
+        if ok and type(n)=="number" then return n end
     end
     return 0
 end
 
-local function prettyName(placeable)
-    if placeable == nil then return "UNKNOWN" end
-    if placeable.getName ~= nil then
-        local n = placeable:getName()
-        if n ~= nil and n ~= "" then return n end
+local function getClustersCount(clusterSystem)
+    if clusterSystem == nil then return 0 end
+    if clusterSystem.getClusters ~= nil then
+        local ok, list = pcall(function() return clusterSystem:getClusters() end)
+        if ok and type(list) == "table" then return #list end
     end
-    if placeable.configFileName ~= nil then
-        local s = tostring(placeable.configFileName)
+    if clusterSystem.clusters ~= nil and type(clusterSystem.clusters)=="table" then
+        return #clusterSystem.clusters
+    end
+    if clusterSystem.getNumClusters ~= nil then
+        local ok, n = pcall(function() return clusterSystem:getNumClusters() end)
+        if ok and type(n)=="number" then return n end
+    end
+    return 0
+end
+
+local function prettyName(plc)
+    if plc == nil then return "UNKNOWN" end
+    if plc.getName ~= nil then
+        local n = plc:getName()
+        if n and n ~= "" then return n end
+    end
+    if plc.configFileName ~= nil then
+        local s = tostring(plc.configFileName)
         if s ~= "" then return s end
     end
     return "Placeable"
 end
 
-local function isAnimalHusbandry(placeable)
-    return placeable ~= nil and placeable.spec_husbandryAnimals ~= nil
-end
+local function inferSpecies(plc, spec)
+    -- Prefer explicit husbandry name
+    local hname = safeLower(spec and spec.husbandryName or "")
+    if hname:find("cow", 1, true)   then return "COW" end
+    if hname:find("sheep", 1, true) then return "SHEEP" end
+    if hname:find("pig", 1, true)   then return "PIG" end
+    if hname:find("goat", 1, true)  then return "GOAT" end
+    if hname:find("chick",1, true) or hname:find("hen",1,true) then return "CHICKEN" end
 
-local function isLivestockTrailer(placeable)
-    return placeable ~= nil and placeable.spec_livestockTrailer ~= nil
-end
+    -- Fallback: typeName/config filename hints
+    local t   = safeLower(plc and plc.typeName or "")
+    local cfg = safeLower(plc and plc.configFileName or "")
+    if t:find("cow",1,true) or cfg:find("cow",1,true) then return "COW" end
+    if t:find("sheep",1,true) or cfg:find("sheep",1,true) then return "SHEEP" end
+    if t:find("pig",1,true) or cfg:find("pig",1,true) then return "PIG" end
+    if t:find("goat",1,true) or cfg:find("goat",1,true) then return "GOAT" end
+    if t:find("chicken",1,true) or cfg:find("chicken",1,true) or cfg:find("hen",1,true) then return "CHICKEN" end
 
-local function inferTypeFromSpec(placeable)
-    if isAnimalHusbandry(placeable) then
-        local spec = placeable.spec_husbandryAnimals
-        local hname = (spec and spec.husbandryName) or ""
-        local N = string.upper(hname)
-        if string.find(N, "COW")    then return "COW" end
-        if string.find(N, "SHEEP")  then return "SHEEP" end
-        if string.find(N, "PIG")    then return "PIG" end
-        if string.find(N, "GOAT")   then return "GOAT" end
-        if string.find(N, "CHICK") or string.find(N, "HEN") then return "CHICKEN" end
-        return "ANIMAL"
-    elseif isLivestockTrailer(placeable) then
-        return "TRAILER"
-    end
-    return "OTHER"
+    return "ANIMAL"
 end
 
 local function addEntry(entry)
@@ -74,81 +129,51 @@ local function addEntry(entry)
     table.insert(_byFarmIndex[f], entry)
 end
 
--- ---------- classify one placeable ----------
-local function _classify(placeable, via)
-    if placeable == nil then return end
-    local hasHus = isAnimalHusbandry(placeable)
-    local hasTrl = isLivestockTrailer(placeable)
-    if not hasHus and not hasTrl then return end
+local function classify(plc, via)
+    if plc == nil or isFarmhouseLike(plc) then return end
+    if not isAnimalHusbandry(plc) then return end
 
+    local spec = plc.spec_husbandryAnimals or plc.spec_animalHusbandry
     local clusterSystem = nil
-    if hasHus and placeable.spec_husbandryAnimals ~= nil then
-        clusterSystem = placeable.spec_husbandryAnimals.clusterSystem
-    elseif hasTrl and placeable.spec_livestockTrailer ~= nil then
-        clusterSystem = placeable.spec_livestockTrailer.clusterHusbandry
+    if spec ~= nil then
+        clusterSystem = spec.clusterSystem or spec.clusterHusbandry or nil
     end
 
     local entry = {
-        placeable     = placeable,
-        farmId        = safeFarmId(placeable),
-        type          = inferTypeFromSpec(placeable),
-        clusterSystem = clusterSystem,
-        name          = prettyName(placeable),
+        placeable      = plc,
+        farmId         = getOwnerFarmId(plc),
+        type           = inferSpecies(plc, spec),  -- <- RESTORED species category
+        clusterSystem  = clusterSystem,
+        clustersCount  = getClustersCount(clusterSystem),
+        name           = prettyName(plc),
+        animalCount    = getAnimalCount(plc),
+        typeName       = plc.typeName,
+        file           = plc.configFileName
     }
     addEntry(entry)
-    log("%s HIT: %s | farm=%d | type=%s | cluster=%s",
-        tostring(via), entry.name, entry.farmId, entry.type, tostring(entry.clusterSystem ~= nil))
+    log("%s HIT: %s | farm=%d | species=%s | animals=%d | clusters=%d",
+        tostring(via), entry.name, entry.farmId, entry.type, entry.animalCount or -1, entry.clustersCount or -1)
 end
 
--- ---------- GLOBAL (class) hooks: install ASAP at file load ----------
-local function hookPlaceableSystemGlobals()
-    if PlaceableSystem == nil then return end
-    if PlaceableSystem.__pn_globalHooked then return end
-
-    -- after original: get the actual instance that was added
-    if PlaceableSystem.addPlaceable ~= nil then
-        PlaceableSystem.addPlaceable = Utils.appendedFunction(PlaceableSystem.addPlaceable, function(self, placeable, ...)
-            _classify(placeable, "AddPlaceable")
-        end)
-    end
-
-    -- load functions: actual classification occurs when addPlaceable runs
-    if PlaceableSystem.loadPlaceable ~= nil then
-        PlaceableSystem.loadPlaceable = Utils.appendedFunction(PlaceableSystem.loadPlaceable, function(self, xmlFile, ...)
-            -- no-op
-        end)
-    end
-    if PlaceableSystem.loadPlaceableFromXML ~= nil then
-        PlaceableSystem.loadPlaceableFromXML = Utils.appendedFunction(PlaceableSystem.loadPlaceableFromXML, function(self, xmlFilename, ...)
-            -- no-op
-        end)
-    end
-
-    PlaceableSystem.__pn_globalHooked = true
-    Logging.info("[PN] Global PlaceableSystem hooks installed")
-end
-
--- Install immediately
-hookPlaceableSystemGlobals()
-
--- ---------- snapshot scan (fallback) ----------
-local function doScan()
+local function clearIndex()
     _entries     = {}
     _byFarmIndex = {}
-
-    local ps  = g_currentMission and g_currentMission.placeableSystem or nil
-    local arr = ps and ps.placeables or nil
-
-    if arr ~= nil then
-        for _, placeable in ipairs(arr) do
-            _classify(placeable, "Scan")
-        end
-    end
-    log("Scan complete: %d (animal-capable) entries now tracked.", #_entries)
-    return #_entries
 end
 
--- ---------- public API ----------
+local function doScan(tag)
+    clearIndex()
+    local ps  = g_currentMission and g_currentMission.placeableSystem or nil
+    local arr = ps and ps.placeables or nil
+    if arr ~= nil then
+        for _, plc in ipairs(arr) do
+            classify(plc, tag or "Scan")
+        end
+    end
+    _isReady = true
+    log("Scan complete: %d entries.", #_entries)
+end
+
+-- ---------- public API (unchanged) ----------
 function PN_HusbandryScan.isReady()
     return _isReady
 end
@@ -157,41 +182,39 @@ function PN_HusbandryScan.getAll()
     return _entries
 end
 
-function PN_HusbandryScan.getByFarm(farmId)
+function PN_HusbandryScan.getByFarmId(farmId)
     return _byFarmIndex[farmId or 0] or {}
 end
 
-function PN_HusbandryScan.getFirstByType(wantedType)
-    local t = string.upper(wantedType or "")
-    for _, e in ipairs(_entries) do
-        if e.type == t then return e end
-    end
-    return nil
-end
-
--- ---------- lifecycle ----------
 function PN_HusbandryScan:onMissionStarted()
-    hookPlaceableSystemGlobals()  -- in case class wasn’t ready at file load
-    doScan()
-    _isReady = true
-    log("PN_HusbandryScan ready.")
+    _elapsedMs       = 0
+    _rescanElapsedMs = 0
+    _bootRescanned   = false
+    _isReady         = false
+    doScan("Boot")
 end
 
--- delayed one-shot rescan (guarded)
-PN_HusbandryScan._bootElapsed = 0
-PN_HusbandryScan._rescanned   = false
-function PN_HusbandryScan.tick(dt)
-    hookPlaceableSystemGlobals()
+function PN_HusbandryScan:update(dt)
     if type(dt) ~= "number" then return end
-    if not _isReady then return end
-    if PN_HusbandryScan._rescanned then return end
-
-    PN_HusbandryScan._bootElapsed = PN_HusbandryScan._bootElapsed + dt
-    if PN_HusbandryScan._bootElapsed >= 2000 then
-        local n = doScan()
-        log("Delayed rescan; entries=%d", n or -1)
-        PN_HusbandryScan._rescanned = true
+    if not _bootRescanned then
+        _elapsedMs = _elapsedMs + dt
+        if _elapsedMs >= INITIAL_DELAY_MS then
+            doScan("Delayed")
+            _bootRescanned = true
+            _rescanElapsedMs = 0
+            return
+        end
+    else
+        _rescanElapsedMs = _rescanElapsedMs + dt
+        if _rescanElapsedMs >= RESCAN_EVERY_MS then
+            doScan("Refresh")
+            _rescanElapsedMs = 0
+        end
     end
+end
+
+function PN_HusbandryScan.tick(dt)
+    PN_HusbandryScan:update(dt)
 end
 
 addModEventListener(PN_HusbandryScan)

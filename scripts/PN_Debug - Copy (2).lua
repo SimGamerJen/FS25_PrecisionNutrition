@@ -132,6 +132,13 @@ end
 
 -- ---------- force a heartbeat once ----------
 function PN_Debug:cmdBeat(idxStr)
+	local function _adgSupplyEnabled()
+	  if PN_Settings and PN_Settings.adg and PN_Settings.adg.useSupplyFactor ~= nil then
+		return (PN_Settings.adg.useSupplyFactor == true)
+	  end
+	  return true
+	end
+
     if PN_HusbandryScan == nil or PN_HusbandryScan.getAll == nil or PN_Core == nil or PN_Core.updateHusbandry == nil then
         Logging.info("[PN] pnBeat: PN not ready")
         return
@@ -148,10 +155,10 @@ function PN_Debug:cmdBeat(idxStr)
         return
     end
 
-    -- Light refresh so PN snapshots are current
+    -- Refresh PN snapshot so nut/totals are current
     pcall(PN_Core.updateHusbandry, PN_Core, e, e.clusterSystem, 33, { forceBeat = true })
 
-    -- Species inference (local, no PN_Core dependency)
+    -- Species inference
     local function inferSpecies(entry)
         local function norm(s)
             s = tostring(s or ""):upper()
@@ -183,7 +190,6 @@ function PN_Debug:cmdBeat(idxStr)
     -- Split counts from live clusters
     local counts = { femaleOpen=0, femalePreg=0, male=0 }
     local wsum   = { femaleOpen=0, femalePreg=0, male=0 }
-
     local okC, clusters = pcall(e.clusterSystem.getClusters, e.clusterSystem)
     if okC and type(clusters) == "table" then
         for _, c in pairs(clusters) do
@@ -205,7 +211,6 @@ function PN_Debug:cmdBeat(idxStr)
             end
         end
     end
-
     local avgW = {
         femaleOpen = (counts.femaleOpen>0) and (wsum.femaleOpen / counts.femaleOpen) or 0,
         femalePreg = (counts.femalePreg>0) and (wsum.femalePreg / counts.femalePreg) or 0,
@@ -224,7 +229,100 @@ function PN_Debug:cmdBeat(idxStr)
     end
     if barnNut < 0 then barnNut = 0 elseif barnNut > 1 then barnNut = 1 end
 
-    -- Stage mapping for ADG model (uses PN_Core.stageLabel if available)
+    -- Live available DM in trough (kg) — robust to either e.placeable.* or e.* specs
+    local function fillTypeNameByIndex(idx)
+        if g_fillTypeManager and g_fillTypeManager.getFillTypeNameByIndex then
+            local n = g_fillTypeManager:getFillTypeNameByIndex(idx)
+            if n and n ~= "" then return n end
+        end
+        return "FT:"..tostring(idx)
+    end
+    local function barnAvailableDmKg(entry)
+        local p = (entry and entry.placeable) or entry
+        if not p then return 0 end
+        local total = 0
+        -- Preferred: spec_fillUnit.fillUnits[*].fillLevels[ft] = liters
+        if p.spec_fillUnit and p.spec_fillUnit.fillUnits then
+            for _, fu in ipairs(p.spec_fillUnit.fillUnits) do
+                local levels = fu and fu.fillLevels
+                if type(levels) == "table" then
+                    for ftIndex, L in pairs(levels) do
+                        local liters = tonumber(L or 0) or 0
+                        if liters > 0 then
+                            local mpl = 1.0
+                            if g_fillTypeManager and g_fillTypeManager.fillTypes and g_fillTypeManager.fillTypes[ftIndex] then
+                                mpl = tonumber(g_fillTypeManager.fillTypes[ftIndex].massPerLiter or 1.0) or 1.0
+                            end
+                            local nameU = tostring(fillTypeNameByIndex(ftIndex)):upper()
+                            local dmFrac = nil
+                            if PN_Core and PN_Core.feedAliases and PN_Core.feedAliases[nameU] and PN_Core.feedAliases[nameU].dmFrac then
+                                dmFrac = tonumber(PN_Core.feedAliases[nameU].dmFrac)
+                            elseif PN_Core and PN_Core.tokenForFillTypeIndex then
+                                local okTok, tok = pcall(PN_Core.tokenForFillTypeIndex, PN_Core, ftIndex)
+                                if okTok and tok and PN_Core.feedTable and PN_Core.feedTable[tok] and PN_Core.feedTable[tok].dmFrac then
+                                    dmFrac = tonumber(PN_Core.feedTable[tok].dmFrac)
+                                end
+                            end
+                            dmFrac = dmFrac or 0
+                            total = total + (liters * mpl * dmFrac)
+                        end
+                    end
+                end
+            end
+        end
+        -- Fallback: spec_husbandryFood.fillLevels[ft] = liters
+        if total == 0 and p.spec_husbandryFood and p.spec_husbandryFood.fillLevels then
+            for ftIndex, L in pairs(p.spec_husbandryFood.fillLevels) do
+                local liters = tonumber(L or 0) or 0
+                if liters > 0 then
+                    local mpl = 1.0
+                    if g_fillTypeManager and g_fillTypeManager.fillTypes and g_fillTypeManager.fillTypes[ftIndex] then
+                        mpl = tonumber(g_fillTypeManager.fillTypes[ftIndex].massPerLiter or 1.0) or 1.0
+                    end
+                    local nameU = tostring(fillTypeNameByIndex(ftIndex)):upper()
+                    local dmFrac = nil
+                    if PN_Core and PN_Core.feedAliases and PN_Core.feedAliases[nameU] and PN_Core.feedAliases[nameU].dmFrac then
+                        dmFrac = tonumber(PN_Core.feedAliases[nameU].dmFrac)
+                    elseif PN_Core and PN_Core.tokenForFillTypeIndex then
+                        local okTok, tok = pcall(PN_Core.tokenForFillTypeIndex, PN_Core, ftIndex)
+                        if okTok and tok and PN_Core.feedTable and PN_Core.feedTable[tok] and PN_Core.feedTable[tok].dmFrac then
+                            dmFrac = tonumber(PN_Core.feedTable[tok].dmFrac)
+                        end
+                    end
+                    dmFrac = dmFrac or 0
+                    total = total + (liters * mpl * dmFrac)
+                end
+            end
+        end
+        return total
+    end
+
+    -- Demand (kg/hd/d) for each stage
+    local function dmDemandKgHd(species, stage)
+        if PN_Core and PN_Core.nutritionForStage then
+            local okN, row = pcall(PN_Core.nutritionForStage, PN_Core, species, stage)
+            if okN and type(row)=="table" then
+                local v = tonumber(row.dmDemandKgHd or row.intakeKgHd or 0)
+                if v and v > 0 then return v end
+            end
+        end
+        return 0
+    end
+
+    -- Supply factor from available DM vs required DM (0..1)
+    local function supplyFactorBarn(entry, species, counts)
+        local avail = barnAvailableDmKg(entry)
+        local req = 0
+        req = req + dmDemandKgHd(species, "LACT") * (counts.femaleOpen or 0)
+        req = req + dmDemandKgHd(species, "GEST") * (counts.femalePreg or 0)
+        req = req + dmDemandKgHd(species, "BULL") * (counts.male       or 0)
+        if req <= 0 then return 1.0 end
+        local f = avail / req
+        if f < 0 then f = 0 elseif f > 1 then f = 1 end
+        return f
+    end
+
+    -- Stage label for ADG model
     local function stageFor(key)
         local sex  = (key == "male") and "male" or "female"
         local isPr = (key == "femalePreg")
@@ -240,12 +338,43 @@ function PN_Debug:cmdBeat(idxStr)
         return isPr and "PREG" or "FEMALE"
     end
 
+    -- Maturity reserve (same as PN_Core.updateHusbandry)
+    local function maturityReserve(species, avgW)
+        local mk
+        if PN_Core and PN_Core.meta then
+            local m = PN_Core.meta[(tostring(species or "COW")):upper()]
+            mk = m and tonumber(m.matureKg)
+        end
+        if mk and mk > 0 and (avgW or 0) > 0 then
+            local frac = math.max(0, math.min(1, (avgW or 0)/mk))
+            return math.max(0.10, 1.0 - (frac ^ 1.6))
+        end
+        return 1.0
+    end
+
+	local supplyF = 1.0
+	if _adgSupplyEnabled() then
+	  supplyF = supplyFactorBarn(e, species, counts)
+	end
+
     local function adgFor(stage, w)
+        local a = 0.10 * barnNut
         if PN_Core and PN_Core.adgFor then
             local okG, g = pcall(PN_Core.adgFor, PN_Core, species, stage, w or 0, barnNut)
-            if okG and type(g) == "number" then return g end
+            if okG and type(g) == "number" then a = g end
         end
-        return 0.10 * barnNut -- baseline fallback
+        a = a * maturityReserve(species, w) * (supplyF or 1.0)
+	local allowNeg = (PN_Settings and PN_Settings.adg and PN_Settings.adg.allowNegative == true)
+	if allowNeg then
+	  local deficit = 1 - (supplyF or 1.0)
+	  if deficit > 0 then
+		local penalty = ((PN_Settings.adg.starvationPenaltyKg or 0.05) * deficit)
+		a = a - penalty
+	  end
+	else
+	  if a < 0 then a = 0 end
+	end
+        return a
     end
 
     local rows = {
@@ -266,6 +395,75 @@ function PN_Debug:cmdBeat(idxStr)
             end
         end
     end
+end
+
+function PN_Debug:cmdClearFeed(idxStr, pctStr)
+  if PN_HusbandryScan == nil or PN_HusbandryScan.getAll == nil then
+    Logging.info("[PN] pnClearFeed: PN not ready"); return
+  end
+  local idx = tonumber(idxStr or "")
+  if idx == nil then
+    Logging.info("[PN] Usage: pnClearFeed <index> [percent 0..100]  (see pnDumpHusbandries)"); return
+  end
+  local pct = tonumber(pctStr or "100") or 100
+  if pct < 0 then pct = 0 elseif pct > 100 then pct = 100 end
+  local list = PN_HusbandryScan.getAll()
+  local e = list and list[idx]
+  if not e then Logging.info("[PN] pnClearFeed: no entry at index %s", tostring(idx)); return end
+
+  local p = (e.placeable or e)
+  local removedL = 0
+
+  local function _massPerL(ftIndex)
+    if g_fillTypeManager and g_fillTypeManager.fillTypes and g_fillTypeManager.fillTypes[ftIndex] then
+      return tonumber(g_fillTypeManager.fillTypes[ftIndex].massPerLiter or 1.0) or 1.0
+    end
+    return 1.0
+  end
+
+  -- Try API first (preferred), otherwise fall back to raw table edits
+  local canAPI = (p.addFillUnitFillLevel ~= nil)
+
+  -- 1) spec_fillUnit per-unit levels
+  if p.spec_fillUnit and p.spec_fillUnit.fillUnits then
+    for unitIndex, fu in ipairs(p.spec_fillUnit.fillUnits) do
+      local levels = fu and fu.fillLevels
+      if type(levels) == "table" then
+        for ftIndex, liters in pairs(levels) do
+          local L = tonumber(liters or 0) or 0
+          if L > 0 then
+            local take = L * (pct/100)
+            if canAPI then
+              p:addFillUnitFillLevel(nil, unitIndex, -take, ftIndex, ToolType.UNDEFINED)
+            else
+              levels[ftIndex] = L - take
+            end
+            removedL = removedL + take
+          end
+        end
+      end
+    end
+  end
+
+  -- 2) spec_husbandryFood aggregate levels (fallback)
+  if p.spec_husbandryFood and p.spec_husbandryFood.fillLevels then
+    for ftIndex, liters in pairs(p.spec_husbandryFood.fillLevels) do
+      local L = tonumber(liters or 0) or 0
+      if L > 0 then
+        local take = L * (pct/100)
+        p.spec_husbandryFood.fillLevels[ftIndex] = L - take
+        removedL = removedL + take
+      end
+    end
+  end
+
+  -- Refresh PN snapshot so overlay updates right away
+  if PN_Core and PN_Core.updateHusbandry and e and e.clusterSystem then
+    pcall(PN_Core.updateHusbandry, PN_Core, e, e.clusterSystem, 33, { source="pnClearFeed" })
+  end
+
+  Logging.info("[PN] Cleared %.0f%% feed in '%s' (%.0f L total; ~%.0f kg)", pct, tostring(e.name or "?"),
+    removedL, removedL * _massPerL(1))
 end
 
 -- Set heartbeat period or disable it: pnHeartbeat <ms|off>
@@ -752,36 +950,42 @@ if addConsoleCommand ~= nil then
     addConsoleCommand("pnAutoConsume", "Toggle PN auto consumption (on/off)", "cmdAutoConsume", PN_Debug)
 end
 
--- ---------- register everything (guarded) ----------
+-- =====================
+-- Console registration
+-- =====================
+
 if addConsoleCommand ~= nil then
-    -- NOTE: arg3 = *method name string*, arg4 = target table
-    addConsoleCommand("pnDumpHusbandries",
-        "Print PN-detected husbandries/trailers to the log",
-        "cmdDumpHusbandries", PN_Debug)
+    -- Core inspection
+    addConsoleCommand("pnDumpHusbandries", "List PN-scanned husbandries", "cmdDumpHusbandries", PN_Debug)
+    addConsoleCommand("pnInspect",         "Inspect PN entry",           "cmdInspect",         PN_Debug)
+    addConsoleCommand("pnInspectTrough",   "Inspect trough levels/types","cmdInspectTrough",   PN_Debug)
+    addConsoleCommand("pnFindFeeder",      "Find feeders near entry",    "cmdFindFeeder",      PN_Debug)
+    addConsoleCommand("pnClearFeed",       "Clear/Reduce trough feed %", "cmdClearFeed",       PN_Debug)
 
-    addConsoleCommand("pnDumpHusbandriesCSV",
-        "Write PN-detected husbandries/trailers to PN_Husbandries.csv",
-        "cmdDumpHusbandriesCSV", PN_Debug)
+    -- Mix override
+    addConsoleCommand("pnSetMix",          "Set composition lock",       "cmdSetMix",          PN_Debug)
+    addConsoleCommand("pnClearMix",        "Clear composition lock",     "cmdClearMix",        PN_Debug)
+    addConsoleCommand("pnShowMix",         "Show effective mix",         "cmdShowMix",         PN_Debug)
 
-    addConsoleCommand("pnInspect",
-        "Inspect one PN entry by index",
-        "cmdInspectHusbandry", PN_Debug)
+    -- PN passthroughs / toggles
+    addConsoleCommand("pnSetLogLevel",     "Set PN log level",           "cmdSetLogLevel",     PN_Debug)
+    addConsoleCommand("pnOverlay",         "Toggle PN overlay",          "cmdOverlay",         PN_Debug)
+    addConsoleCommand("pnOverlayMine",     "Toggle PN overlay (mine)",   "cmdOverlayMine",     PN_Debug)
+    addConsoleCommand("pnHeartbeat",       "Trigger PN heartbeat",       "cmdHeartbeat",       PN_Debug)
+    addConsoleCommand("pnIntakeDebug",     "Toggle intake debug (on/off)","cmdIntakeDebug",    PN_Debug)
+    addConsoleCommand("pnPNReload",        "Reload PN core",             "cmdPNReload",        PN_Debug)
+    addConsoleCommand("pnNut",             "Nutrition debug for entry",  "cmdNut",             PN_Debug)
+    addConsoleCommand("pnSim",             "Simulate days",              "cmdSim",             PN_Debug)
+    addConsoleCommand("pnInspectFoodSpec", "Dump spec_husbandryFood",    "cmdInspectFoodSpec", PN_Debug)
+    addConsoleCommand("pnCredit",          "PN credit/version",          "cmdCredit",          PN_Debug)
+    addConsoleCommand("pnAutoConsume",     "Toggle autoConsume",         "cmdAutoConsume",     PN_Debug)
+	addConsoleCommand("pnBeat", 	 "Trigger PN heartbeat (alias of pnHeartbeat)", "cmdBeat", PN_Debug)
+	addConsoleCommand("pnFixEvents", "Restore PN_Events methods if clobbered", "cmdFixEvents", PN_Debug)
 
-    addConsoleCommand("pnInspectClusters",
-        "Inspect cluster objects for one PN entry",
-        "cmdInspectClusters", PN_Debug)
-
-    addConsoleCommand("pnBeat",
-        "Force a PN heartbeat for one entry by index",
-        "cmdBeat", PN_Debug)
-		
-    addConsoleCommand("pnOverlay",
-		"Toggle PN overlay on/off",
-		"cmdOverlay", PN_Debug)
-		
-    addConsoleCommand("pnHeartbeat",
-        "Set PN heartbeat period in ms, or 'off' to disable",
-        "cmdHeartbeat", PN_Debug)
+    -- Extra debug
+    addConsoleCommand("pnListMods",        "List active mods",           "cmdListMods",        PN_Debug)
+    addConsoleCommand("pnDumpFillTypes",   "Dump PN-relevant fillTypes", "cmdDumpFillTypes",   PN_Debug)
+	addConsoleCommand("pnDiag", 		   "Print PN module readiness",  "cmdDiag",            PN_Debug)
 
     Logging.info("[PN] Console commands: pnDumpHusbandries, pnDumpHusbandriesCSV, pnInspect, pnInspectClusters, pnBeat, pnOverlay, pnHeartbeat")
 else
