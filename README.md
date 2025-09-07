@@ -2,11 +2,11 @@
 
 **Nutrition-aware growth for cattle in Farming Simulator 25.**
 
-This gameplay mod links your barn’s feed supply directly to **Average Daily Gain (ADG)** and weight change. If animals run out of feed, growth halts and weight begins to decline. This alpha release is stable and usable, but not yet feature-complete.
+This gameplay mod links your barn’s feed supply directly to **Average Daily Gain (ADG)** and weight change. If animals run out of feed, growth halts, and weight begins to decline. This alpha release is stable and usable, but not yet feature-complete.
 
 ---
 
-## ✨ Features (v0.3.2-alpha)
+## ✨ Features (v0.3.4-alpha)
 
 * **Nutrition → Growth:** Barn-level nutrition ratio drives ADG.  
 * **Safe trough behaviour:** Empty troughs force `Nut = 0 → ADG = 0 → avgWeight` declines.  
@@ -15,7 +15,7 @@ This gameplay mod links your barn’s feed supply directly to **Average Daily Ga
 * **Console command support** for testing (`pnClearFeed`, `pnDumpHusbandries`, `pnInspectTrough`, `pnFindFeeder`, `pnBeat`, `pnHeartBeat`).  
 
 ⚠️ **Limitations in this build:**  
-- All feed is treated as generic “forage.” Specialised food groups (energy grains, protein grains, fibre, starch) will arrive in later builds.  
+- All feed is treated as generic “forage.” Specialised food groups (energy grains, protein grains, fibre, and starch) will be introduced in later builds.  
 - Barns that only accept `FORAGE` cannot yet display which ingredients were used.  
 - Overlay is minimal, primarily for debugging.  
 
@@ -44,7 +44,7 @@ Documents/My Games/Farming Simulator 25/mods
 
 ---
 
-## 🎮 Console Commands (0.3.2-alpha)
+## 🎮 Console Commands (0.3.4-alpha)
 
 > **Tip on `<index>`:** Run `pnDumpHusbandries` first to list PN entries and their indices. Most commands take that index.
 
@@ -196,6 +196,7 @@ Documents/My Games/Farming Simulator 25/mods
 
 ## 🧾 Changelog
 
+* **0.3.4-alpha** - Revamped overlay and barns are now on a separate overlay page, using ALT+N to open/close the overlay and ALT+B or ALT+M to cycle left/right. Animal growth/developmen stages revamped but may change again in future builds
 * **0.3.2-alpha** — Stable baseline; farmhouse deletion fixed; husbandry scan stable; all console commands documented.
 * **0.3.0-alpha** — First stable pre-release; core nutrition → ADG pipeline working, RL multipliers applied, trough clearing safe.
 * **0.2.x.x** — Experimental builds, not publicly released.
@@ -203,21 +204,20 @@ Documents/My Games/Farming Simulator 25/mods
 
 ---
 
-### ✅ What’s working in 0.3.2-alpha
+### ✅ What’s working in 0.3.4-alpha
 
 * **Husbandry scan**: barns / pens are detected reliably, so commands like `pnDumpHusbandries` and `pnBeat` can pull info from them.
 * **Feed → Nutrition mapping**: everything you dump into a trough gets translated into a nutrient vector (`energy`, `protein`, `fibre`, `starch`).
 * **Nutrition ratio calculation**: the barn’s feed balance is compared against stage-specific targets (calf, grower, finisher, dry, gest, lact, bull). You’ll see a `Nut=…` % value in the console output.
 * **ADG (Average Daily Gain)**: each animal group gets an **ADG (kg/day)** number computed from weight, stage, and nutrition ratio. This is stored per-barn and shown in console (e.g. `ADG=0.043 kg/d`).
 * **Heartbeat / progression**: running `pnBeat` steps the model forward, so animals’ average weight increases (or drops if feed is poor/empty). This is how nutrition *actually* affects outcomes now.
-* **Integration with Realistic Livestock**: PN scales against RL attributes (weight, fertility, metabolism, etc.) so they don’t conflict.
+* **Integration with Realistic Livestock**: PN scales against RL attributes (weight, fertility, metabolism, etc.) so they don’t conflict. Reads from RL data and has the ability to write-back as necessary, although nothing needs to at this stage of development.
 
 ### 🚫 What’s *not* yet happening
 
-* No in-game GUI/overlay beyond console output (nutrient ratios, ADG, weight shifts).
-* No direct sale-price or condition multipliers yet — weight gain is happening, but value on sale is still vanilla.
+* No direct sale price or condition multipliers yet — weight gain is happening, but sale value is still vanilla.
+* No support for custom crops of ingredient-specific nutritional benefits, everything is "forage" (at least on Judith Plains).
 * “Grass-fed” logic is coded, but not hooked into market prices yet.
-* Enhanced Mixer Wagon (EMW) support is stubbed but buggy.
 
 ### 🤔 So, does it “make a difference”?
 
@@ -227,12 +227,11 @@ Yes — but right now the effect is visible **only if you look at console output
 * If you balance hay + silage + some protein grain → ratio closer to stage target → ADG bigger.
 * If feed runs out (pnClearFeed test) → nutrition = 0 → ADG = 0 → weights begin dropping.
 
-So while the animals in the pens look the same in-game, under the hood their **average weight and growth trajectory is being driven by nutrition quality**. Over time, this will be what drives sale value and condition.
+So while the animals in the pens look the same in-game, under the hood, their **average weight and growth trajectory is being driven by nutrition quality**. Over time, this will be what drives sale value and condition.
 
 ---
 
 👉 Next steps could be:
 
 1. **Hook weight → sale price** so market value actually changes.
-2. **Overlay / UI panel** to show ranchers nutrition, ADG, and grass-fed status without console diving.
 4. **Add health/fertility feedbacks** (tie into Realistic Livestock deeper).
