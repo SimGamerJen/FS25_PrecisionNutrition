@@ -160,7 +160,7 @@ local function clearIndex()
     _byFarmIndex = {}
 end
 
-local function doScan(tag)
+function PN_HusbandryScan:doScan(tag)
     clearIndex()
     local ps  = g_currentMission and g_currentMission.placeableSystem or nil
     local arr = ps and ps.placeables or nil
@@ -191,7 +191,7 @@ function PN_HusbandryScan:onMissionStarted()
     _rescanElapsedMs = 0
     _bootRescanned   = false
     _isReady         = false
-    doScan("Boot")
+    PN_HusbandryScan:doScan("Boot")
 end
 
 function PN_HusbandryScan:update(dt)
@@ -199,7 +199,7 @@ function PN_HusbandryScan:update(dt)
     if not _bootRescanned then
         _elapsedMs = _elapsedMs + dt
         if _elapsedMs >= INITIAL_DELAY_MS then
-            doScan("Delayed")
+            PN_HusbandryScan:doScan("Delayed")
             _bootRescanned = true
             _rescanElapsedMs = 0
             return
@@ -207,7 +207,7 @@ function PN_HusbandryScan:update(dt)
     else
         _rescanElapsedMs = _rescanElapsedMs + dt
         if _rescanElapsedMs >= RESCAN_EVERY_MS then
-            doScan("Refresh")
+            PN_HusbandryScan:doScan("Refresh")
             _rescanElapsedMs = 0
         end
     end

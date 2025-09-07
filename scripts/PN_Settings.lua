@@ -13,7 +13,7 @@ PN_Settings.adg = PN_Settings.adg or {
 
 PN_Settings.adg = PN_Settings.adg or {}
 PN_Settings.adg.allowNegative = true          -- default false
-PN_Settings.adg.starvationPenaltyKg = 0.05    -- max extra loss at 100% shortage (kg/d)
+PN_Settings.adg.starvationPenaltyKg = 0.05    -- max extra loss at 100% shortage (kg/d)And for a 
 
 -- ---------- small utils ----------
 local function _u(s) return tostring(s or ""):upper() end
@@ -39,7 +39,15 @@ local function baseConfig()
     return {
         -- species meta
         meta = {
-            COW     = { matureKg = 650, matureAgeM = 24 },
+            COW     = {
+        matureKg   = 650,
+        matureAgeM = 24,
+        overageM   = 25,
+        sale = {
+            overagePenaltyPerMonth = 0.03,
+            overagePenaltyFloor    = 0.80,
+        }
+    },
             SHEEP   = { matureKg = 75,  matureAgeM = 12 },
             PIG     = { matureKg = 120, matureAgeM = 8  },
             GOAT    = { matureKg = 65,  matureAgeM = 12 },
@@ -48,58 +56,121 @@ local function baseConfig()
 
         -- Option A: stage bands (gender-aware) — defaults (override via stages.xml)
         stages = {
-            COW = {
-                { name="CALF",     minAgeM=0,  maxAgeM=6,   baseADG=0.80 },
-                { name="HEIFER",   gender="female", minAgeM=6,  maxAgeM=15,  baseADG=1.00 },
-                { name="LACT",     gender="female", minAgeM=15, maxAgeM=120, baseADG=0.20 },
-                { name="DRY",      gender="female", minAgeM=15, maxAgeM=120, baseADG=0.10 },
-                { name="STEER",    gender="male",   minAgeM=6,  maxAgeM=24,  baseADG=1.20 },
-                { name="BULL",     gender="male",   minAgeM=24, maxAgeM=120, baseADG=0.40 },
-                default_female = { name="DEFAULT_F", minAgeM=0, maxAgeM=1e9, baseADG=0.20, gender="female" },
-                default_male   = { name="DEFAULT_M", minAgeM=0, maxAgeM=1e9, baseADG=0.40, gender="male"   },
-                default        = { name="DEFAULT",   minAgeM=0, maxAgeM=1e9, baseADG=0.20 },
-            },
-            SHEEP = {
-                { name="LAMB",     minAgeM=0,  maxAgeM=6,   baseADG=0.25 },
-                { name="EWE_LACT", gender="female", minAgeM=6,  maxAgeM=120, baseADG=0.08 },
-                { name="EWE_DRY",  gender="female", minAgeM=6,  maxAgeM=120, baseADG=0.04 },
-                { name="RAM_GROW", gender="male",   minAgeM=6,  maxAgeM=12,  baseADG=0.20 },
-                { name="RAM_ADULT",gender="male",   minAgeM=12, maxAgeM=120, baseADG=0.10 },
-                default_female = { name="DEFAULT_F", minAgeM=0, maxAgeM=1e9, baseADG=0.06, gender="female" },
-                default_male   = { name="DEFAULT_M", minAgeM=0, maxAgeM=1e9, baseADG=0.12, gender="male"   },
-                default        = { name="DEFAULT",   minAgeM=0, maxAgeM=1e9, baseADG=0.06 },
-            },
-            PIG = {
-                { name="PIGLET",   minAgeM=0,  maxAgeM=2,   baseADG=0.35 },
-                { name="GILT",     gender="female", minAgeM=2,  maxAgeM=5,   baseADG=0.65 },
-                { name="SOW_GEST", gender="female", minAgeM=5,  maxAgeM=120, baseADG=0.25 },
-                { name="SOW_LACT", gender="female", minAgeM=5,  maxAgeM=120, baseADG=0.15 },
-                { name="BARROW",   gender="male",   minAgeM=2,  maxAgeM=5,   baseADG=0.75 },
-                { name="BOAR",     gender="male",   minAgeM=5,  maxAgeM=120, baseADG=0.40 },
-                default_female = { name="DEFAULT_F", minAgeM=0, maxAgeM=1e9, baseADG=0.40, gender="female" },
-                default_male   = { name="DEFAULT_M", minAgeM=0, maxAgeM=1e9, baseADG=0.55, gender="male"   },
-                default        = { name="DEFAULT",   minAgeM=0, maxAgeM=1e9, baseADG=0.40 },
-            },
-            GOAT = {
-                { name="KID",      minAgeM=0,  maxAgeM=6,   baseADG=0.20 },
-                { name="DOE_LACT", gender="female", minAgeM=6,  maxAgeM=120, baseADG=0.06 },
-                { name="DOE_DRY",  gender="female", minAgeM=6,  maxAgeM=120, baseADG=0.03 },
-                { name="BUCK_GROW",gender="male",   minAgeM=6,  maxAgeM=12,  baseADG=0.18 },
-                { name="BUCK_ADULT",gender="male",  minAgeM=12, maxAgeM=120, baseADG=0.10 },
-                default_female = { name="DEFAULT_F", minAgeM=0, maxAgeM=1e9, baseADG=0.05, gender="female" },
-                default_male   = { name="DEFAULT_M", minAgeM=0, maxAgeM=1e9, baseADG=0.10, gender="male"   },
-                default        = { name="DEFAULT",   minAgeM=0, maxAgeM=1e9, baseADG=0.05 },
-            },
-            CHICKEN = {
-                { name="CHICK",      minAgeM=0,  maxAgeM=1,   baseADG=0.03 },
-                { name="BROILER_F",  gender="female", minAgeM=1,  maxAgeM=6,   baseADG=0.060 },
-                { name="LAYER",      gender="female", minAgeM=5,  maxAgeM=60,  baseADG=0.020 },
-                { name="BROILER_M",  gender="male",   minAgeM=1,  maxAgeM=6,   baseADG=0.065 },
-                { name="ROOSTER",    gender="male",   minAgeM=5,  maxAgeM=60,  baseADG=0.025 },
-                default_female = { name="DEFAULT_F", minAgeM=0, maxAgeM=1e9, baseADG=0.03, gender="female" },
-                default_male   = { name="DEFAULT_M", minAgeM=0, maxAgeM=1e9, baseADG=0.03, gender="male"   },
-                default        = { name="DEFAULT",   minAgeM=0, maxAgeM=1e9, baseADG=0.03 },
-            },
+			COW = {
+				-- Unsexed / shared
+				{ name="CALF",   minAgeM=0,  maxAgeM=8,   baseADG=0.90 },   -- typical pre-wean ADG ~0.7–1.2
+
+				-- Females
+				{ name="HEIFER", gender="female", minAgeM=8,  maxAgeM=15,  baseADG=0.75 },  -- replacement target ~0.6–0.9
+				{ name="LACT",   gender="female", minAgeM=15, maxAgeM=120, baseADG=0.15 },  -- can be 0 to slight loss; use 0.15 baseline
+				{ name="DRY",    gender="female", minAgeM=15, maxAgeM=120, baseADG=0.35 },  -- rebuilding BCS pre-calving
+
+				-- Males
+				{ name="YEARLING", gender="male", minAgeM=8,  maxAgeM=18,  baseADG=1.10 },  -- intact/steer growth 0.9–1.3 typical
+				{ name="STEER",    gender="male", minAgeM=18, maxAgeM=24,  baseADG=1.25 },  -- finishing (pasture/feedlot mix) 1.0–1.5
+				{ name="BULL",     gender="male", minAgeM=18, maxAgeM=120, baseADG=0.45 },  -- 18–30m ~0.6, mature settles ~0.3–0.4
+
+				-- Fallbacks
+				default_female = { name="DEFAULT_F", minAgeM=0, maxAgeM=1e9, baseADG=0.25, gender="female" },
+				default_male   = { name="DEFAULT_M", minAgeM=0, maxAgeM=1e9, baseADG=0.45, gender="male"   },
+				default        = { name="DEFAULT",   minAgeM=0, maxAgeM=1e9, baseADG=0.25 },
+			},
+			
+			SHEEP = {
+			  -- Species meta
+			  matureKg    = 80,    -- UI/economy cap; keep rams sensible in menus
+			  matureAgeM  = 12,    -- functional maturity for most systems
+
+			  -- Shared early growth
+			  { name="LAMB",         minAgeM=0,  maxAgeM=4,  baseADG=0.28 },  -- ♂ & ♀
+			  { name="WEANER",       minAgeM=4,  maxAgeM=8,  baseADG=0.22 },  -- ♂ & ♀
+
+			  -- Females
+			  { name="YEARLING",     gender="female", minAgeM=8,  maxAgeM=12, baseADG=0.12 },
+			  { name="EWE_LACT",     gender="female", minAgeM=12, maxAgeM=240, baseADG=0.05 },
+			  { name="EWE_DRY",      gender="female", minAgeM=12, maxAgeM=240, baseADG=0.10 },
+
+			  -- Males
+			  { name="YEARLING",     gender="male",   minAgeM=8,  maxAgeM=12, baseADG=0.12 }, -- ram lamb/yearling
+			  { name="WETHER_FINISH",gender="male",   minAgeM=6,  maxAgeM=10, baseADG=0.30 }, -- finishing window for castrated males
+			  { name="RAM",          gender="male",   minAgeM=12, maxAgeM=240, baseADG=0.08 },
+
+			  -- Fallbacks
+			  default_female = { name="DEFAULT_F", minAgeM=0, maxAgeM=1e9, baseADG=0.08, gender="female" },
+			  default_male   = { name="DEFAULT_M", minAgeM=0, maxAgeM=1e9, baseADG=0.10, gender="male"   },
+			  default        = { name="DEFAULT",   minAgeM=0, maxAgeM=1e9, baseADG=0.08 },
+			},
+			PIG = {
+			  -- Species meta
+			  matureKg    = 300,   -- UI/economy cap for sows/boars
+			  matureAgeM  = 10,    -- functional maturity
+			  
+			  -- Shared early growth
+			  { name="PIGLET",  minAgeM=0,  maxAgeM=2, baseADG=0.30 },  -- 1–20 kg
+			  { name="WEANER",  minAgeM=2,  maxAgeM=4, baseADG=0.55 },  -- 20–60 kg
+			  { name="GROWER",  minAgeM=4,  maxAgeM=6, baseADG=0.70 },  -- 60–100 kg
+			  
+			  -- Slaughter finishers
+			  { name="BARROW", 	 gender="male",   minAgeM=6, maxAgeM=8, baseADG=0.80 }, -- barrows
+			  { name="GILT", 	 gender="female", minAgeM=6, maxAgeM=8, baseADG=0.80 }, -- gilts
+			  
+			  -- Breeding stock
+			  { name="SOW_LACT", gender="female", minAgeM=8, maxAgeM=120, baseADG=0.15 },
+			  { name="SOW_DRY",  gender="female", minAgeM=8, maxAgeM=120, baseADG=0.25 },
+			  { name="BOAR",     gender="male",   minAgeM=8, maxAgeM=120, baseADG=0.20 },
+			  
+			  -- Fallbacks
+			  default_female = { name="DEFAULT_F", minAgeM=0, maxAgeM=1e9, baseADG=0.25, gender="female" },
+			  default_male   = { name="DEFAULT_M", minAgeM=0, maxAgeM=1e9, baseADG=0.25, gender="male"   },
+			  default        = { name="DEFAULT",   minAgeM=0, maxAgeM=1e9, baseADG=0.25 },
+			},
+			GOAT = {
+			  -- Species meta
+			  matureKg    = 80,     -- UI/economy cap
+			  matureAgeM  = 12,     -- functional maturity
+
+			  -- Shared early growth
+			  { name="KID",           minAgeM=0,  maxAgeM=4,  baseADG=0.22 },  -- ♂ & ♀
+			  { name="WEANER",        minAgeM=4,  maxAgeM=8,  baseADG=0.18 },  -- ♂ & ♀
+			  { name="YEARLING",      minAgeM=8,  maxAgeM=12, baseADG=0.10 },  -- ♂ & ♀
+
+			  -- Females
+			  { name="DOE_LACT",      gender="female", minAgeM=12, maxAgeM=240, baseADG=0.04 },
+			  { name="DOE_DRY",       gender="female", minAgeM=12, maxAgeM=240, baseADG=0.08 },
+
+			  -- Males
+			  { name="WETHER_FINISH", gender="male",   minAgeM=6,  maxAgeM=10,  baseADG=0.25 }, -- castrated finish window
+			  { name="BUCK",          gender="male",   minAgeM=12, maxAgeM=240, baseADG=0.07 },
+
+			  -- Fallbacks
+			  default_female = { name="DEFAULT_F", minAgeM=0, maxAgeM=1e9, baseADG=0.08, gender="female" },
+			  default_male   = { name="DEFAULT_M", minAgeM=0, maxAgeM=1e9, baseADG=0.10, gender="male"   },
+			  default        = { name="DEFAULT",   minAgeM=0, maxAgeM=1e9, baseADG=0.08 },
+			},
+			CHICKEN = {
+			  -- Species meta
+			  matureKg    = 3.0,   -- UI/economy cap
+			  matureAgeM  = 6,     -- functional maturity (layers start laying ~20–24 wks)
+
+			  -- Shared early growth
+			  { name="CHICK",          minAgeM=0,  maxAgeM=1, baseADG=0.02 }, -- 40–200 g
+			  { name="GROWER",         minAgeM=1,  maxAgeM=4, baseADG=0.04 }, -- 200 g–1.5 kg
+
+			  -- Broiler meat birds
+			  { name="BROILER_FINISH", minAgeM=2,  maxAgeM=3, baseADG=0.06 }, -- 2–3 kg finish window
+
+			  -- Layers
+			  { name="PULLET",   gender="female", minAgeM=4, maxAgeM=6,   baseADG=0.03 },
+			  { name="HEN_LAY",  gender="female", minAgeM=6, maxAgeM=120, baseADG=0.01 },
+
+			  -- Roosters
+			  { name="ROOSTER",  gender="male",   minAgeM=6, maxAgeM=120, baseADG=0.015 },
+
+			  -- Fallbacks
+			  default_female = { name="DEFAULT_F", minAgeM=0, maxAgeM=1e9, baseADG=0.01, gender="female" },
+			  default_male   = { name="DEFAULT_M", minAgeM=0, maxAgeM=1e9, baseADG=0.015, gender="male" },
+			  default        = { name="DEFAULT",   minAgeM=0, maxAgeM=1e9, baseADG=0.01 },
+			},
         },
 
         -- daily nutrition targets (defaults; override via targets.xml)

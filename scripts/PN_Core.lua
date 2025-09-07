@@ -44,6 +44,20 @@ local function _nfmt(x, p)
     return math.floor(x * m + 0.5) / m
 end
 
+-- RL castration detector (live cluster only; zero I/O)
+function PN_Core.isCastrated(cluster)
+    if not cluster then return false end
+    if cluster.isCastrated == true then return true end
+    if type(cluster.getIsCastrated) == "function" then
+        local ok, v = pcall(cluster.getIsCastrated, cluster)
+        if ok and v == true then return true end
+    end
+    -- Some RL builds encode “steer” in subType/typeName
+    local st = tostring(cluster.subType or cluster.typeName or ""):lower()
+    if st:find("steer", 1, true) then return true end
+    return false
+end
+
 -- -----------------------
 -- Config access
 -- -----------------------
@@ -110,8 +124,138 @@ end
 -- Species best-effort (kept simple; UI may set entry.__pn_species)
 local function _getSpeciesFromEntry(entry)
     if entry and entry.__pn_species then return entry.__pn_species end
-    return "COW"
+    -- explicit type wins if present
+    local t = _u(entry and entry.type)
+    if t ~= "" and t ~= "ANIMAL" and t ~= "HUSBANDRY" then return t end
+
+    local cs = entry and entry.clusterSystem
+    if cs and cs.getClusters then
+        local ok, clusters = pcall(cs.getClusters, cs)
+        if ok and type(clusters) == "table" then
+            for _, c in pairs(clusters) do
+                local st = _u(c and (c.subType or c.typeName or c.role) or "")
+
+                -- CATTLE
+                if st:find("COW",1,true) or st:find("BULL",1,true) or st:find("HEIFER",1,true) or st:find("STEER",1,true) then
+                    return "COW"
+                end
+                -- SHEEP
+                if st:find("SHEEP",1,true) or st:find("EWE",1,true) or st:find("RAM",1,true) or st:find("LAMB",1,true) then
+                    return "SHEEP"
+                end
+                -- PIGS
+                if st:find("PIG",1,true) or st:find("HOG",1,true) or st:find("SOW",1,true) or st:find("GILT",1,true)
+                   or st:find("BOAR",1,true) or st:find("BARROW",1,true) then
+                    return "PIG"
+                end
+                -- GOATS
+                if st:find("GOAT",1,true) or st:find("DOE",1,true) or st:find("BUCK",1,true) or st:find("KID",1,true) then
+                    return "GOAT"
+                end
+                -- CHICKENS
+                if st:find("CHICK",1,true) or st:find("HEN",1,true) or st:find("ROOSTER",1,true)
+                   or st:find("LAYER",1,true) or st:find("BROILER",1,true) then
+                    return "CHICKEN"
+                end
+            end
+        end
+    end
+
+    return "COW" -- safe fallback
 end
+
+-- Stage resolver with COW-first priority (uses live RL flags)
+function PN_Core.resolveStage(self, species, gender, ageM, flags)
+    species = _u(species or "COW")
+    gender  = (gender == "male" or gender == "female") and gender or nil
+    flags   = flags or {}
+    local isCast = flags.castrated == true
+    local isLact = flags.lactating == true
+    ageM    = tonumber(ageM or 0) or 0
+
+    -- 1) Explicit COW rules win before band lookup
+    if species == "COW" then
+        if gender == "male" then
+            if isCast then
+                if ageM >= 25 then return "OVERAGE" end   -- castrated, 25m+
+                if ageM >= 18 then return "STEER"   end   -- castrated, 18–24.999m
+            else
+                if ageM >= 18 then return "BULL"    end   -- intact male, 18m+
+            end
+        elseif gender == "female" then
+            if isLact then return "LACT" end                 -- lactating wins
+            -- non-lact females: bands choose HEIFER/DRY by age
+        end
+    end
+
+    -- 2) Fallback to PN stage bands (months+gender)
+    local row  = _getStage(species, ageM, gender)
+    local name = row and row.name or "DEFAULT"
+
+    -- Keep LACT/DRY sensible for females if bands return LACT but not lactating
+    if species == "COW" and gender == "female" then
+        if isLact then
+            name = "LACT"
+        elseif name == "LACT" then
+            name = "DRY"
+        end
+    end
+    return name
+end
+
+-- Stage resolver aware of castration/intact flags (used by stage-row helpers)
+local function _isEntryCastrated(entry, clusterSystem)
+    if entry and entry.isCastrated ~= nil then return entry.isCastrated end
+    if entry and entry.isIntact     ~= nil then return not entry.isIntact end
+
+    local cs = clusterSystem or (entry and entry.clusterSystem)
+    if cs and cs.getClusters then
+        local ok, clusters = pcall(cs.getClusters, cs)
+        if ok and type(clusters) == "table" then
+            for _, c in pairs(clusters) do
+                if type(c) == "table" and not c.isDead then
+                    if c.isCastrated ~= nil then return c.isCastrated end
+                    if c.isIntact    ~= nil then return not c.isIntact end
+                    local st = tostring(c.subType or c.role or ""):lower()
+                    if st:find("steer", 1, true) then return true  end
+                    if st:find("bull",  1, true) then return false end
+                end
+            end
+        end
+    end
+    return false -- default unless we see 'steer'
+end
+
+-- Like _getStage but honors requireCastrated/requireIntact if present on stage rows.
+local function _getStageForEntry(speciesKey, months, gender, entry)
+    local S = PN_Core.stages[_u(speciesKey or "DEFAULT")] or {}
+    local g = tostring(gender or ""):lower()
+
+    local candidates = {}
+    for _, row in ipairs(S) do
+        if type(row) == "table" and row.name and row.minAgeM and row.maxAgeM then
+            if row.gender == nil or tostring(row.gender):lower() == g then
+                if months >= row.minAgeM and months < row.maxAgeM then
+                    table.insert(candidates, row)
+                end
+            end
+        end
+    end
+
+    if #candidates == 0 then
+        return _getStage(speciesKey, months, gender)
+    end
+
+    local castrated = _isEntryCastrated(entry, entry and entry.clusterSystem)
+    for _, r in ipairs(candidates) do
+        local ok = true
+        if r.requireCastrated and not castrated then ok = false end
+        if r.requireIntact    and castrated then ok = false end
+        if ok then return r end
+    end
+    return candidates[1]
+end
+
 
 -- -----------------------
 -- FEED RESOLUTION / TROUGH LEVELS (levels-based path)
@@ -436,7 +580,7 @@ end
 -- -----------------------
 -- Gender split helper (uses same Nut/taper rules)
 -- -----------------------
-local function _calcGenderLine(genderKey, gHead, gWeightSum, gMonths, speciesKey, nutRatio)
+local function _calcGenderLine(genderKey, gHead, gWeightSum, gMonths, speciesKey, nutRatio, entry)
     local g = { head = gHead or 0, avgW = 0, stage = "DEFAULT", adg = 0 }
     if g.head > 0 then
         g.avgW = (gWeightSum or 0) / g.head
@@ -500,7 +644,7 @@ function PN_Core.updateHusbandry(self, entry, clusterSystem, dtMs, ctx)
 
     -- 2) Determine species & stage → targets and baseADG
     local species = entry.__pn_species or _getSpeciesFromEntry(entry)
-    local stage   = _getStage(species, avgMonths, barnGender)
+    local stage   = _getStageForEntry(species, avgMonths, barnGender, entry)
     local E_tgt, P_tgt, DMI_tgt = _getTargets(species, stage.name)
 
     -- 3) Intake since last tick (delta-based)
@@ -519,8 +663,8 @@ function PN_Core.updateHusbandry(self, entry, clusterSystem, dtMs, ctx)
     local availDm = _availableDmKgFromLevels(levels)          -- kg DM currently in trough
 
     -- per-sex stage for demand share (simple: same stage row but we could refine)
-    local stageF = _getStage(species, avgMonths, "female")
-    local stageM = _getStage(species, avgMonths, "male")
+    local stageF = _getStageForEntry(species, avgMonths, "female", entry)
+    local stageM = _getStageForEntry(species, avgMonths, "male", entry)
     local _, _, DMI_tgtF = _getTargets(species, stageF.name)
     local _, _, DMI_tgtM = _getTargets(species, stageM.name)
 
@@ -596,8 +740,8 @@ function PN_Core.updateHusbandry(self, entry, clusterSystem, dtMs, ctx)
     end
 
     -- 9) Per-gender summaries using same Nut/taper rules (for pnBeat split)
-    local gFemale = _calcGenderLine("female", cows,  femaleWeightSum, avgMonths, species, nut)
-    local gMale   = _calcGenderLine("male",   bulls, maleWeightSum,   avgMonths, species, nut)
+    local gFemale = _calcGenderLine("female", cows,  femaleWeightSum, avgMonths, species, nut, entry)
+    local gMale   = _calcGenderLine("male",   bulls, maleWeightSum,   avgMonths, species, nut, entry)
 
     -- 10) Persist totals for UI/debug
     entry.__pn_totals = {
@@ -621,6 +765,130 @@ function PN_Core.updateHusbandry(self, entry, clusterSystem, dtMs, ctx)
     entry.__pn_last = entry.__pn_last or {}
     entry.__pn_last.nutRatio = nut
     entry.__pn_last.effADG   = adg
+
+    --------------------------------------------------------------------------
+    -- 10.5) Publish per-animal/per-stage snapshot for overlay (matches pnBeat)
+    --------------------------------------------------------------------------
+    do
+        entry.__pn_last = entry.__pn_last or {}
+        local animals = {}
+		
+		-- make sure we resolve using the *actual* barn species (handles EWE/RAM, etc.)
+		local speciesResolved =
+			(entry.__pn_totals and entry.__pn_totals.species)
+			or _getSpeciesFromEntry(entry)
+
+
+		local function _ageMonthsFrom(c)
+			-- 1) Explicit “months” candidates
+			local m = tonumber(
+				c.ageMonths or c.ageInMonths or c.monthsOld or c.age_mo or
+				c.ageM or c.months or c.age_months
+			)
+			if m then return m end
+
+			-- 2) Ambiguous 'age' commonly used by RL — assume MONTHS unless it's huge (then it's days)
+			local a = tonumber(c.age)
+			if a then
+				-- Treat anything up to 120 as months (10 years); otherwise consider it days.
+				if a <= 120 then return a else return a / 30.0 end
+			end
+
+			-- 3) Clear “days” fields → months
+			local d = tonumber(
+				c.ageDays or c.age_in_days or c.daysOld or c.age_d or c.ageDaysOld
+			)
+			if d then return d / 30.0 end
+
+			-- 4) Hours → months
+			local h = tonumber(c.ageHours or c.age_in_hours or c.hoursOld or c.age_h)
+			if h then return h / (24.0 * 30.0) end
+
+			return 0
+		end
+
+        if ok and type(clusters) == "table" then
+            for _, c in pairs(clusters) do
+                if type(c) == "table" and not c.isDead then
+                    local subTL  = tostring(c.subType or c.typeName or ""):lower()
+                    local gender = tostring(c.gender  or ""):lower()
+                    if gender ~= "male" and gender ~= "female" then
+                        -- mirror PN_UI helper logic
+                        if subTL:find("bull",1,true) or subTL:find("steer",1,true) then
+                            gender = "male"
+                        elseif subTL:find("cow",1,true) or subTL:find("heifer",1,true) then
+                            gender = "female"
+                        else
+                            gender = nil
+                        end
+                    end
+
+                    local flags = {
+                        lactating = (c.isLactating == true) or (c.isMilking == true) or ((c.milkLitersPerDay or 0) > 0),
+                        castrated = (c.isCastrated == true) or (c.castrated == true) or (c.isCast == true)
+                                    or (subTL:find("steer", 1, true) ~= nil),
+                    }
+
+                    local ageM  = _ageMonthsFrom(c)
+                    local head  = tonumber(c.numAnimals or c.n or c.count or c.head or c.size or c.num or 1) or 1
+                    local avgW  = tonumber(c.avgWeight  or c.weight or 0) or 0
+
+					-- Decide stage. If age is unknown (0/nil), DO NOT use age-band resolver;
+					-- go straight to the weight-based classification so steers/bulls don’t
+					-- collapse to CALF.
+					local ageUnknown = (ageM == nil) or (ageM <= 0)
+					local stage = nil
+
+					if (not ageUnknown) and PN_Core.resolveStage then
+						stage = PN_Core:resolveStage(speciesResolved, gender, ageM, flags)
+					end
+
+					if ageUnknown or (stage == nil) or stage == "" or stage == "DEFAULT" then
+						-- weight-based fallback, identical to PN_UI
+						local U  = (tostring(speciesResolved or "COW")):upper()
+						local mk = PN_Core.meta and PN_Core.meta[U] and tonumber(PN_Core.meta[U].matureKg) or 650
+
+						if gender == "female" then
+							if flags.lactating then
+								stage = "LACT"
+							elseif avgW < 240 then
+								stage = "CALF"
+							elseif avgW < 500 then
+								stage = "HEIFER"
+							else
+								stage = "DRY"
+							end
+						else
+							if flags.castrated then
+								-- castrated males: YEARLING until ~80% mature mass, then STEER
+								stage = (avgW >= 0.8 * mk) and "STEER" or "YEARLING"
+							else
+								-- intact males
+								if avgW >= 0.9 * mk then
+									stage = "BULL"
+								elseif avgW >= 280 then
+									stage = "YEARLING"
+								else
+									stage = "CALF"
+								end
+							end
+						end
+					end
+
+                    table.insert(animals, {
+                        stage  = stage,
+                        gender = gender,
+                        head   = head,
+                        avgW   = avgW,
+                        ageM   = ageM,
+                        flags  = flags
+                    })
+                end
+            end
+        end
+
+        entry.__pn_last.animals = animals
+    end
 
     --------------------------------------------------------------------------
     -- 11) === GROUP AGGREGATION (female-open / female-preg / male) ===
@@ -734,7 +1002,7 @@ function PN_Core.updateHusbandry(self, entry, clusterSystem, dtMs, ctx)
             local okA, v = pcall(f, PN_Core, speciesResolved, dst.stage, dst.avgW, dst.nut)
             if okA and type(v)=="number" then return v end
         end
-        local st = _getStage(speciesResolved, avgMonths, (dst == G.male) and "male" or "female")
+        local st = _getStageForEntry(speciesResolved, avgMonths, ((dst == G.male) and "male" or "female"), entry)
         local a  = tonumber(st.baseADG or 0) or 0
         a = a * (dst.nut or 0)
         local meta = PN_Core.meta and PN_Core.meta[(speciesResolved or "COW"):upper()] or nil

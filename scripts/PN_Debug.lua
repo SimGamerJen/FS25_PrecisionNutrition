@@ -6,11 +6,213 @@ PN_Debug = PN_Debug or {}
 -- =========================================================
 -- Small utilities (safe string, simple helpers)
 -- =========================================================
+-- ---------- steer / castration inference (no file IO) ----------
+local function _cGender(c)
+    if not c then return nil end
+    if c.isMale ~= nil and type(c.isMale)=="function" then
+        local ok, b = pcall(c.isMale, c); if ok then return b and "male" or "female" end
+    end
+    if c.getGender ~= nil and type(c.getGender)=="function" then
+        local ok, g = pcall(c.getGender, c); if ok and type(g)=="string" then return g:lower() end
+    end
+    if c.gender ~= nil then return tostring(c.gender):lower() end
+    return nil
+end
+
+local function _cCastrated(c)
+    -- RL puts it right on the cluster table in your build
+    if c.isCastrated ~= nil then
+        return c.isCastrated == true
+    end
+    -- Fallbacks if RL moves it or your scan cached it elsewhere
+    if c.extra and c.extra.isCastrated ~= nil then
+        return c.extra.isCastrated == true
+    end
+    if PN_HusbandryScan and PN_HusbandryScan.getAnimalFlags then
+        local flags = PN_HusbandryScan.getAnimalFlags(c) -- whatever your API returns for this cluster
+        if flags and flags.isCastrated ~= nil then
+            return flags.isCastrated == true
+        end
+    end
+    return false
+end
+
+-- Some maps/mods (incl. RL) label cluster subType/typeName with "steer"
+local function _cLooksLikeSteer(c)
+    local s = tostring(c.subType or c.typeName or c.breed or ""):lower()
+    return (s:find("steer", 1, true) ~= nil)
+end
+
 local function _safe(n)
     if n == nil then return "?" end
     n = tostring(n)
     if n == "" then return "?" end
     return n
+end
+
+--- ---------- Cluster getters (robust) ----------
+local function _cNum(c)
+    if not c then return 0 end
+    if c.getNumAnimals ~= nil then local ok, n = pcall(c.getNumAnimals, c); if ok and type(n)=="number" then return n end end
+    if c.numAnimals ~= nil then return tonumber(c.numAnimals) or 0 end
+    if c.count      ~= nil then return tonumber(c.count)      or 0 end
+    if c.n          ~= nil then return tonumber(c.n)          or 0 end
+    return 1 -- worst-case: treat as a single animal
+end
+
+local function _cAvgWeightKg(c)
+    if not c then return 0 end
+    if c.getAverageWeight ~= nil then local ok, w = pcall(c.getAverageWeight, c); if ok and type(w)=="number" then return w end end
+    if c.getWeight        ~= nil then local ok, w = pcall(c.getWeight,        c); if ok and type(w)=="number" then return w end end
+    if c.avgWeight        ~= nil then return tonumber(c.avgWeight)        or 0 end
+    if c.averageWeight    ~= nil then return tonumber(c.averageWeight)    or 0 end
+    if c.weight           ~= nil then return tonumber(c.weight)           or 0 end
+    return 0
+end
+
+local function _cLactating(c)
+    if not c then return false end
+    for _,k in ipairs({"isLactating","getIsLactating","isMilking"}) do
+        local f = c[k]
+        if type(f)=="function" then local ok, v = pcall(f, c); if ok and v == true then return true end
+        elseif f ~= nil and f == true then return true end
+    end
+    if (c.milkLitersPerDay or 0) > 0 then return true end
+    return false
+end
+
+local function _cAgeMonths(c)
+    if not c then return 0 end
+    -- Prefer explicit months if available
+    for _,k in ipairs({"getAgeMonths","ageMonths","ageM","age_months","months","monthAge","ageInMonths"}) do
+        local v = c[k]
+        if type(v)=="function" then local ok, n = pcall(v, c); if ok and type(n)=="number" then return n end
+        elseif v ~= nil then local n=tonumber(v); if n then return n end end
+    end
+    -- Fallbacks likely in DAYS; heuristic: big values (>100) are days
+    for _,k in ipairs({"getAge","ageDays","ageInDays","age"}) do
+        local v = c[k]
+        if type(v)=="function" then local ok, n = pcall(v, c); if ok and type(n)=="number" then return (n > 100 and (n/30.4167) or n) end
+        elseif v ~= nil then local n=tonumber(v); if n then return (n > 100 and (n/30.4167) or n) end end
+    end
+    return 0
+end
+
+-- ---------- Stage helpers (uses PN_Core or PN_Settings) ----------
+local function _dbgNormSpecies(s)
+    s = tostring(s or ""):upper()
+    if s == "CATTLE" then return "COW" end
+    if s == "HEN"    then return "CHICKEN" end
+    return s ~= "" and s or "ANIMAL"
+end
+
+local _DBG_STAGE_ORDER = {
+  COW     = { CALF=1, HEIFER=2, LACT=3, DRY=4, YEARLING=5, STEER=6, BULL=7, OVERAGE=8, DEFAULT=99 },
+  SHEEP   = { LAMB=1, EWE_LACT=2, EWE_DRY=3, RAM_GROW=4, RAM_ADULT=5, DEFAULT=99 },
+  PIG     = { PIGLET=1, GILT=2, SOW_LACT=3, SOW_GEST=4, BARROW=5, BOAR=6, DEFAULT=99 },
+  GOAT    = { KID=1, DOE_LACT=2, DOE_DRY=3, BUCK_GROW=4, BUCK_ADULT=5, DEFAULT=99 },
+  CHICKEN = { CHICK=1, BROILER_F=2, LAYER=3, BROILER_M=4, ROOSTER=5, DEFAULT=99 },
+  ANIMAL  = { DEFAULT=1 },
+}
+
+local _DBG_BANDS_CACHE = {}
+local function _dbgGetBands(species)
+    species = tostring(species or "ANIMAL"):upper()
+    if _DBG_BANDS_CACHE[species] then return _DBG_BANDS_CACHE[species] end
+    local bands = nil
+    if PN_Core and PN_Core.stages and PN_Core.stages[species] then
+        bands = PN_Core.stages[species]
+    elseif PN_Settings and PN_Settings.load then
+        local ok, cfg = pcall(PN_Settings.load)
+        if ok and type(cfg)=="table" and cfg.stages and cfg.stages[species] then
+            bands = cfg.stages[species]
+        end
+    end
+    _DBG_BANDS_CACHE[species] = bands
+    return bands
+end
+
+-- Prefer live RL flags; enforce COW priority before bands
+local function _dbgResolveStage(species, gender, ageM, flags)
+    species = tostring(species or "ANIMAL"):upper()
+    gender  = (gender == "male" or gender == "female") and gender or nil
+    flags   = flags or {}
+    local isCast = flags.castrated == true
+    local isLact = flags.lactating == true
+    ageM    = tonumber(ageM or 0) or 0
+
+    -- 1) COW priority rules (win before bands)
+    if species == "COW" then
+        if gender == "male" then
+            if isCast then
+                if ageM >= 25 then return "OVERAGE" end     -- castrated, 25m+ => OVERAGE
+                if ageM >= 18 then return "STEER"   end     -- castrated, 18–24.999m => STEER
+                -- <18m: let bands handle CALF/YEARLING, etc.
+            else
+                if ageM >= 18 then return "BULL"    end     -- intact male, 18m+ => BULL
+                -- <18m: let bands handle CALF/YEARLING, etc.
+            end
+        elseif gender == "female" then
+            if isLact then return "LACT" end                -- lactating takes precedence
+            -- (non-lactating female: bands will pick HEIFER / DRY by age)
+        end
+    end
+
+    -- 2) If PN_Core has a resolver, let it try (may include more nuanced logic)
+    if PN_Core and PN_Core.resolveStage then
+        local ok, st = pcall(PN_Core.resolveStage, PN_Core, species, gender or "", ageM, flags)
+        if ok and type(st) == "string" and st ~= "" then
+            return st
+        end
+    end
+
+    -- 3) Fallback: PN_Settings bands
+    local bands = _dbgGetBands(species)
+    if type(bands) == "table" then
+        for _, b in ipairs(bands) do
+            if type(b) == "table" and b.name then
+                if (not b.gender) or (gender and b.gender == gender) then
+                    local minA = tonumber(b.minAgeM or 0) or 0
+                    local maxA = tonumber(b.maxAgeM or math.huge) or math.huge
+                    if ageM >= minA and ageM < maxA then
+                        if b.name == "LACT" or b.name == "DRY" then
+                            if b.name == "LACT" and isLact      then return "LACT" end
+                            if b.name == "DRY"  and not isLact  then return "DRY"  end
+                        else
+                            return tostring(b.name)
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    -- 4) Very last resort (keeps things sensible if bands are missing)
+    if species == "COW" then
+        if gender == "female" then return isLact and "LACT" or "DRY" end
+        if gender == "male"   then return isCast and "STEER" or "BULL" end
+    end
+    return "DEFAULT"
+end
+
+-- All barns: pnStagesAll  (calls pnStages for each index)
+function PN_Debug:cmdStagesAll()
+    local list = (PN_HusbandryScan and PN_HusbandryScan.getAll and PN_HusbandryScan.getAll()) or {}
+    if type(list) ~= "table" or #list == 0 then
+        Logging.info("[PN] pnStagesAll: no entries")
+        return
+    end
+    for i=1,#list do
+        self:cmdStages(tostring(i))
+    end
+end
+
+function PN_Debug:cmdRLCounts()
+    local rl = _dbgLoadRLSteerMap() or {}
+    Logging.info("[PN] RL (savegame) male castrated counts by placeable file:")
+    local n=0
+    for k,v in pairs(rl) do Logging.info("[PN]   %s => %d", k, v); n=n+v end
+    Logging.info("[PN]   TOTAL = %d", n)
 end
 
 -- =========================================================
@@ -102,6 +304,213 @@ end
 -- =========================================================
 -- Inspectors (husbandry, clusters, trough, food spec)
 -- =========================================================
+-- Summarise animals by stage for one entry: pnStages <index>
+function PN_Debug:cmdStages(idxStr)
+    local idx = tonumber(idxStr or "")
+    if idx == nil then
+        Logging.info("[PN] Usage: pnStages <index>  (see pnDumpHusbandries)")
+        return
+    end
+    local list = (PN_HusbandryScan and PN_HusbandryScan.getAll and PN_HusbandryScan.getAll()) or {}
+    local e = list[idx]
+    if not e or not e.clusterSystem then
+        Logging.info("[PN] pnStages: no entry/cluster at index %s", tostring(idx))
+        return
+    end
+
+    -- Species + barn nutrition
+    local species = _dbgNormSpecies(e.type or (e.__pn_last and e.__pn_last.species) or "ANIMAL")
+    local barnNut = 0
+    if e.__pn_last and e.__pn_last.nutRatio ~= nil then
+        barnNut = tonumber(e.__pn_last.nutRatio) or 0
+    elseif PN_Core and PN_Core.getTotals then
+        local okT, totals = pcall(PN_Core.getTotals, e)
+        if okT and type(totals)=="table" then barnNut = tonumber(totals.nut or 0) or 0 end
+    end
+    if barnNut < 0 then barnNut = 0 elseif barnNut > 1 then barnNut = 1 end
+
+    -- Clusters
+    local okC, clusters = pcall(e.clusterSystem.getClusters, e.clusterSystem)
+    if not okC or type(clusters) ~= "table" then
+        Logging.info("[PN] pnStages: getClusters() failed")
+        return
+    end
+
+    -- Aggregate stages
+    local agg = {} -- stage -> { head, weightTotal, ageSum, ageMin, ageMax }
+    local totalHead = 0
+    for _, c in pairs(clusters) do
+        if type(c)=="table" and not c.isDead then
+			local head       = _cNum(c)
+			local ageM       = _cAgeMonths(c)
+			local looksSteer = _cLooksLikeSteer(c)
+			local isCast     = _cCastrated(c) or looksSteer       -- live RL + subtype hint
+			local gender     = _cGender(c)
+			local flags      = { lactating=_cLactating(c), castrated=isCast }
+			local stage      = _dbgResolveStage(species, gender, ageM, flags)
+			local avgW       = _cAvgWeightKg(c)
+
+            local t = agg[stage]
+            if not t then t = { head=0, weightTotal=0, ageSum=0, ageMin=9999, ageMax=0 }; agg[stage]=t end
+            t.head        = t.head + head
+            t.weightTotal = t.weightTotal + (avgW * head)
+            t.ageSum      = t.ageSum + (ageM * head)
+            if head > 0 then
+                if ageM < t.ageMin then t.ageMin = ageM end
+                if ageM > t.ageMax then t.ageMax = ageM end
+            end
+            totalHead = totalHead + head
+        end
+    end
+
+    -- Sort and print
+    local order = _DBG_STAGE_ORDER[species] or _DBG_STAGE_ORDER.ANIMAL
+    local keys = {}
+    for st,_ in pairs(agg) do table.insert(keys, st) end
+    table.sort(keys, function(a,b)
+        local oa = order[a] or order.DEFAULT or 99
+        local ob = order[b] or order.DEFAULT or 99
+        if oa == ob then return a < b end
+        return oa < ob
+    end)
+
+    Logging.info("[PN] ---- Stage breakdown for #%d '%s' [%s] ----", idx, tostring(e.name or "?"), species)
+    Logging.info("[PN] Barn Nut=%d%%, animals=%d", math.floor(barnNut*100+0.5), totalHead)
+    for _, st in ipairs(keys) do
+        local t = agg[st]
+        local avgW = (t.head > 0) and (t.weightTotal / t.head) or 0
+        local avgM = (t.head > 0) and (t.ageSum / t.head) or 0
+        Logging.info("[PN]   stage=%-8s | head=%3d | avgW=%7.2f kg | age=avg %.1f m (min %.1f, max %.1f)",
+            tostring(st), t.head, avgW, avgM, t.ageMin, t.ageMax)
+    end
+    Logging.info("[PN] -----------------------------------------------")
+end
+
+-- Explain per-cluster steer detection and stage: pnStagesWhy <index>
+function PN_Debug:cmdStagesWhy(idxStr)
+    local idx = tonumber(idxStr or "")
+    if idx == nil then
+        Logging.info("[PN] Usage: pnStagesWhy <index>  (see pnDumpHusbandries)")
+        return
+    end
+    local list = (PN_HusbandryScan and PN_HusbandryScan.getAll and PN_HusbandryScan.getAll()) or {}
+    local e = list[idx]
+    if not e or not e.clusterSystem then
+        Logging.info("[PN] pnStagesWhy: no entry/cluster at index %s", tostring(idx))
+        return
+    end
+
+    local species = _dbgNormSpecies(e.type or (e.__pn_last and e.__pn_last.species) or "ANIMAL")
+    local okC, clusters = pcall(e.clusterSystem.getClusters, e.clusterSystem)
+    if not okC or type(clusters) ~= "table" then
+        Logging.info("[PN] pnStagesWhy: getClusters() failed")
+        return
+    end
+
+    Logging.info("[PN] ---- WHY for #%d '%s' [%s] ----", idx, tostring(e.name or "?"), species)
+    for _, c in pairs(clusters) do
+        if type(c)=="table" and not c.isDead then
+            local head    = _cNum(c)
+            local gender  = _cGender(c) or "?"
+            local ageM    = _cAgeMonths(c) or 0
+            local hasFlag = _cCastrated(c)
+            local byType  = _cLooksLikeSteer and _cLooksLikeSteer(c) or false
+            local isCast  = hasFlag or byType
+            local flags   = { lactating=_cLactating(c), castrated=isCast }
+            local stage   = _dbgResolveStage(species, gender, ageM, flags)
+            local reason  = hasFlag and "[flag]" or (byType and "[subType]") or ""
+            Logging.info("[PN]   head=%3d | gender=%-6s | age=%5.1fm | cast=%5s %-9s | stage=%-8s | subType='%s'",
+                head, gender, ageM, tostring(isCast), reason, tostring(stage), tostring(c.subType or c.typeName or ""))
+        end
+    end
+    Logging.info("[PN] --------------------------------")
+end
+
+-- Dump non-function fields for each cluster: pnClusterKeys <index>
+function PN_Debug:cmdClusterKeys(idxStr)
+    local idx = tonumber(idxStr or "")
+    if idx == nil then
+        Logging.info("[PN] Usage: pnClusterKeys <index>  (see pnDumpHusbandries)")
+        return
+    end
+    local list = (PN_HusbandryScan and PN_HusbandryScan.getAll and PN_HusbandryScan.getAll()) or {}
+    local e = list[idx]
+    if not e or not e.clusterSystem then
+        Logging.info("[PN] pnClusterKeys: no entry/cluster at index %s", tostring(idx))
+        return
+    end
+    local okC, clusters = pcall(e.clusterSystem.getClusters, e.clusterSystem)
+    if not okC or type(clusters) ~= "table" then
+        Logging.info("[PN] pnClusterKeys: getClusters() failed")
+        return
+    end
+
+    Logging.info("[PN] ---- Cluster fields for #%d '%s' ----", idx, tostring(e.name or "?"))
+    local ci = 0
+    for _, c in pairs(clusters) do
+        if type(c)=="table" and not c.isDead then
+            ci = ci + 1
+            Logging.info("[PN] [C%d] gender=%s ageM=%.1f head=%d subType='%s'",
+                ci, tostring(_cGender(c) or "?"), _cAgeMonths(c) or 0, _cNum(c) or 0, tostring(c.subType or c.typeName or ""))
+            for k,v in pairs(c) do
+                local t = type(v)
+                if t ~= "function" then
+                    if t == "table" then
+                        -- try a short summary
+                        local n = 0; for _ in pairs(v) do n = n + 1; if n>5 then break end end
+                        Logging.info("[PN]   - %-20s : table (%d keys)", tostring(k), n)
+                    else
+                        Logging.info("[PN]   - %-20s : %s = %s", tostring(k), t, tostring(v))
+                    end
+                end
+            end
+        end
+    end
+    Logging.info("[PN] --------------------------------")
+end
+
+-- Hunt for castration-like fields on clusters: pnFindCastration <index>
+function PN_Debug:cmdFindCastration(idxStr)
+    local idx = tonumber(idxStr or "")
+    if idx == nil then
+        Logging.info("[PN] Usage: pnFindCastration <index>  (see pnDumpHusbandries)")
+        return
+    end
+    local list = (PN_HusbandryScan and PN_HusbandryScan.getAll and PN_HusbandryScan.getAll()) or {}
+    local e = list[idx]
+    if not e or not e.clusterSystem then
+        Logging.info("[PN] pnFindCastration: no entry/cluster at index %s", tostring(idx))
+        return
+    end
+    local okC, clusters = pcall(e.clusterSystem.getClusters, e.clusterSystem)
+    if not okC or type(clusters) ~= "table" then
+        Logging.info("[PN] pnFindCastration: getClusters() failed")
+        return
+    end
+
+    Logging.info("[PN] ---- Find castration flags for #%d '%s' ----", idx, tostring(e.name or "?"))
+    local ci = 0
+    for _, c in pairs(clusters) do
+        if type(c)=="table" and not c.isDead then
+            ci = ci + 1
+            local hints = {}
+            for k,v in pairs(c) do
+                if type(k)=="string" and k:lower():find("cast", 1, true) then
+                    table.insert(hints, string.format("%s=%s", k, tostring(v)))
+                end
+            end
+            local gender  = _cGender(c) or "?"
+            local ageM    = _cAgeMonths(c) or 0
+            local byType  = _cLooksLikeSteer and _cLooksLikeSteer(c) or false
+            local hasFlag = _cCastrated(c)
+            Logging.info("[PN] [C%d] head=%d gender=%s age=%.1fm subType='%s' | hasFlag=%s byType=%s | matches={%s}",
+                ci, _cNum(c) or 0, gender, ageM, tostring(c.subType or c.typeName or ""), tostring(hasFlag), tostring(byType),
+                table.concat(hints, ", "))
+        end
+    end
+    Logging.info("[PN] --------------------------------")
+end
+
 function PN_Debug:cmdInspectHusbandry(idxStr)
     local idx = tonumber(idxStr or "")
     if idx == nil then
@@ -423,13 +832,6 @@ end
 -- One-shot / simulation / feed manipulation / credit
 -- =========================================================
 function PN_Debug:cmdBeat(idxStr)
-	local function _adgSupplyEnabled()
-	  if PN_Settings and PN_Settings.adg and PN_Settings.adg.useSupplyFactor ~= nil then
-		return (PN_Settings.adg.useSupplyFactor == true)
-	  end
-	  return true
-	end
-
     if PN_HusbandryScan == nil or PN_HusbandryScan.getAll == nil or PN_Core == nil or PN_Core.updateHusbandry == nil then
         Logging.info("[PN] pnBeat: PN not ready")
         return
@@ -449,12 +851,12 @@ function PN_Debug:cmdBeat(idxStr)
     -- Refresh PN snapshot so nut/totals are current
     pcall(PN_Core.updateHusbandry, PN_Core, e, e.clusterSystem, 33, { forceBeat = true })
 
-    -- Species inference
+    -- Species inference (same as elsewhere)
     local function inferSpecies(entry)
         local function norm(s)
             s = tostring(s or ""):upper()
             if s == "CATTLE" then return "COW" end
-            if s == "HEN" then return "CHICKEN" end
+            if s == "HEN"    then return "CHICKEN" end
             return s
         end
         if entry and entry.type and entry.type ~= "ANIMAL" then return norm(entry.type) end
@@ -478,36 +880,6 @@ function PN_Debug:cmdBeat(idxStr)
     local species = inferSpecies(e)
     local name    = tostring(e.name or "?")
 
-    -- Split counts from live clusters
-    local counts = { femaleOpen=0, femalePreg=0, male=0 }
-    local wsum   = { femaleOpen=0, femalePreg=0, male=0 }
-    local okC, clusters = pcall(e.clusterSystem.getClusters, e.clusterSystem)
-    if okC and type(clusters) == "table" then
-        for _, c in pairs(clusters) do
-            if type(c) == "table" and not c.isDead then
-                local gsex = tostring(c.gender or ""):lower()
-                local w    = tonumber(c.weight or 0) or 0
-                if gsex == "female" then
-                    if c.isPregnant then
-                        counts.femalePreg = counts.femalePreg + 1
-                        wsum.femalePreg   = wsum.femalePreg + w
-                    else
-                        counts.femaleOpen = counts.femaleOpen + 1
-                        wsum.femaleOpen   = wsum.femaleOpen + w
-                    end
-                elseif gsex == "male" then
-                    counts.male = counts.male + 1
-                    wsum.male   = wsum.male + w
-                end
-            end
-        end
-    end
-    local avgW = {
-        femaleOpen = (counts.femaleOpen>0) and (wsum.femaleOpen / counts.femaleOpen) or 0,
-        femalePreg = (counts.femalePreg>0) and (wsum.femalePreg / counts.femalePreg) or 0,
-        male       = (counts.male>0)       and (wsum.male       / counts.male)       or 0,
-    }
-
     -- Barn-level Nut ratio (0..1)
     local barnNut = 0
     if e.__pn_last and e.__pn_last.nutRatio ~= nil then
@@ -520,19 +892,40 @@ function PN_Debug:cmdBeat(idxStr)
     end
     if barnNut < 0 then barnNut = 0 elseif barnNut > 1 then barnNut = 1 end
 
-    -- Live available DM in trough (kg) — robust to either e.placeable.* or e.* specs
-    local function fillTypeNameByIndex(idx)
-        if g_fillTypeManager and g_fillTypeManager.getFillTypeNameByIndex then
-            local n = g_fillTypeManager:getFillTypeNameByIndex(idx)
-            if n and n ~= "" then return n end
-        end
-        return "FT:"..tostring(idx)
+    -- Collect clusters → aggregate by resolved stage
+    local okC, clusters = pcall(e.clusterSystem.getClusters, e.clusterSystem)
+    if not okC or type(clusters) ~= "table" then
+        Logging.info("[PN] pnBeat: getClusters() failed")
+        return
     end
-    local function barnAvailableDmKg(entry)
-        local p = (entry and entry.placeable) or entry
+
+    local agg = {} -- stage -> { head, wSum }
+    local totalHead = 0
+    for _, c in pairs(clusters) do
+        if type(c)=="table" and not c.isDead then
+            local head       = _cNum(c)
+            local ageM       = _cAgeMonths(c)
+            local gender     = _cGender(c)
+            local looksSteer = _cLooksLikeSteer and _cLooksLikeSteer(c) or false
+            local isCast     = (_cCastrated and _cCastrated(c)) or looksSteer
+            local flags      = { lactating=_cLactating(c), castrated=isCast }
+            local stage      = (_dbgResolveStage and _dbgResolveStage(species, gender, ageM, flags)) or "DEFAULT"
+            local avgW       = _cAvgWeightKg(c)
+
+            local t = agg[stage]
+            if not t then t = { head=0, wSum=0 } ; agg[stage]=t end
+            t.head = t.head + head
+            t.wSum = t.wSum + (avgW * head)
+            totalHead = totalHead + head
+        end
+    end
+
+    -- DM available (kg) in trough
+    local function _barnAvailableDmKg(entry)
+        local p = entry and entry.placeable
         if not p then return 0 end
         local total = 0
-        -- Preferred: spec_fillUnit.fillUnits[*].fillLevels[ft] = liters
+        -- Preferred: spec_fillUnit per-unit levels
         if p.spec_fillUnit and p.spec_fillUnit.fillUnits then
             for _, fu in ipairs(p.spec_fillUnit.fillUnits) do
                 local levels = fu and fu.fillLevels
@@ -544,24 +937,19 @@ function PN_Debug:cmdBeat(idxStr)
                             if g_fillTypeManager and g_fillTypeManager.fillTypes and g_fillTypeManager.fillTypes[ftIndex] then
                                 mpl = tonumber(g_fillTypeManager.fillTypes[ftIndex].massPerLiter or 1.0) or 1.0
                             end
-                            local nameU = tostring(fillTypeNameByIndex(ftIndex)):upper()
-                            local dmFrac = nil
-                            if PN_Core and PN_Core.feedAliases and PN_Core.feedAliases[nameU] and PN_Core.feedAliases[nameU].dmFrac then
-                                dmFrac = tonumber(PN_Core.feedAliases[nameU].dmFrac)
-                            elseif PN_Core and PN_Core.tokenForFillTypeIndex then
-                                local okTok, tok = pcall(PN_Core.tokenForFillTypeIndex, PN_Core, ftIndex)
-                                if okTok and tok and PN_Core.feedTable and PN_Core.feedTable[tok] and PN_Core.feedTable[tok].dmFrac then
-                                    dmFrac = tonumber(PN_Core.feedTable[tok].dmFrac)
-                                end
+                            local nameU = tostring((g_fillTypeManager and g_fillTypeManager.getFillTypeNameByIndex and g_fillTypeManager:getFillTypeNameByIndex(ftIndex)) or ftIndex):upper()
+                            if PN_Core and PN_Core.feedAliases and PN_Core.feedAliases[nameU] then
+                                nameU = tostring(PN_Core.feedAliases[nameU]):upper()
                             end
-                            dmFrac = dmFrac or 0
+                            local fmRow = PN_Core and PN_Core.feedMatrix and PN_Core.feedMatrix[nameU] or nil
+                            local dmFrac = (fmRow and fmRow.dm) and tonumber(fmRow.dm) or 0
                             total = total + (liters * mpl * dmFrac)
                         end
                     end
                 end
             end
         end
-        -- Fallback: spec_husbandryFood aggregate levels (fallback)
+        -- Fallback: spec_husbandryFood aggregate
         if total == 0 and p.spec_husbandryFood and p.spec_husbandryFood.fillLevels then
             for ftIndex, L in pairs(p.spec_husbandryFood.fillLevels) do
                 local liters = tonumber(L or 0) or 0
@@ -570,17 +958,12 @@ function PN_Debug:cmdBeat(idxStr)
                     if g_fillTypeManager and g_fillTypeManager.fillTypes and g_fillTypeManager.fillTypes[ftIndex] then
                         mpl = tonumber(g_fillTypeManager.fillTypes[ftIndex].massPerLiter or 1.0) or 1.0
                     end
-                    local nameU = tostring(fillTypeNameByIndex(ftIndex)):upper()
-                    local dmFrac = nil
-                    if PN_Core and PN_Core.feedAliases and PN_Core.feedAliases[nameU] and PN_Core.feedAliases[nameU].dmFrac then
-                        dmFrac = tonumber(PN_Core.feedAliases[nameU].dmFrac)
-                    elseif PN_Core and PN_Core.tokenForFillTypeIndex then
-                        local okTok, tok = pcall(PN_Core.tokenForFillTypeIndex, PN_Core, ftIndex)
-                        if okTok and tok and PN_Core.feedTable and PN_Core.feedTable[tok] and PN_Core.feedTable[tok].dmFrac then
-                            dmFrac = tonumber(PN_Core.feedTable[tok].dmFrac)
-                        end
+                    local nameU = tostring((g_fillTypeManager and g_fillTypeManager.getFillTypeNameByIndex and g_fillTypeManager:getFillTypeNameByIndex(ftIndex)) or ftIndex):upper()
+                    if PN_Core and PN_Core.feedAliases and PN_Core.feedAliases[nameU] then
+                        nameU = tostring(PN_Core.feedAliases[nameU]):upper()
                     end
-                    dmFrac = dmFrac or 0
+                    local fmRow = PN_Core and PN_Core.feedMatrix and PN_Core.feedMatrix[nameU] or nil
+                    local dmFrac = (fmRow and fmRow.dm) and tonumber(fmRow.dm) or 0
                     total = total + (liters * mpl * dmFrac)
                 end
             end
@@ -588,8 +971,7 @@ function PN_Debug:cmdBeat(idxStr)
         return total
     end
 
-    -- Demand (kg/hd/d) for each stage
-    local function dmDemandKgHd(species, stage)
+    local function _dmDemandKgHd(species, stage)
         if PN_Core and PN_Core.nutritionForStage then
             local okN, row = pcall(PN_Core.nutritionForStage, PN_Core, species, stage)
             if okN and type(row)=="table" then
@@ -600,91 +982,82 @@ function PN_Debug:cmdBeat(idxStr)
         return 0
     end
 
-    -- Supply factor from available DM vs required DM (0..1)
-    local function supplyFactorBarn(entry, species, counts)
-        local avail = barnAvailableDmKg(entry)
-        local req = 0
-        req = req + dmDemandKgHd(species, "LACT") * (counts.femaleOpen or 0)
-        req = req + dmDemandKgHd(species, "GEST") * (counts.femalePreg or 0)
-        req = req + dmDemandKgHd(species, "BULL") * (counts.male       or 0)
-        if req <= 0 then return 1.0 end
-        local f = avail / req
-        if f < 0 then f = 0 elseif f > 1 then f = 1 end
-        return f
-    end
-
-    -- Stage label for ADG model
-    local function stageFor(key)
-        local sex  = (key == "male") and "male" or "female"
-        local isPr = (key == "femalePreg")
-        if PN_Core and PN_Core.stageLabel then
-            local okS, lbl = pcall(PN_Core.stageLabel, PN_Core, species, sex, isPr)
-            if okS and type(lbl) == "string" and lbl ~= "" then return lbl end
-        end
-        if species == "COW" then
-            if sex == "male" then return "BULL" end
-            return isPr and "GEST" or "LACT"
-        end
-        if sex == "male" then return "MALE" end
-        return isPr and "PREG" or "FEMALE"
-    end
-
-    -- Maturity reserve (same as PN_Core.updateHusbandry)
-    local function maturityReserve(species, avgW)
-        local mk
-        if PN_Core and PN_Core.meta then
-            local m = PN_Core.meta[(tostring(species or "COW")):upper()]
-            mk = m and tonumber(m.matureKg)
-        end
-        if mk and mk > 0 and (avgW or 0) > 0 then
-            local frac = math.max(0, math.min(1, (avgW or 0)/mk))
-            return math.max(0.10, 1.0 - (frac ^ 1.6))
-        end
-        return 1.0
-    end
-
+    -- Supply factor (0..1) from live DM vs required DM by stages
     local supplyF = 1.0
-    if _adgSupplyEnabled() then
-      supplyF = supplyFactorBarn(e, species, counts)
+    do
+        local avail = _barnAvailableDmKg(e)
+        local req = 0
+        for st, t in pairs(agg) do
+            req = req + (_dmDemandKgHd(species, st) * (t.head or 0))
+        end
+        if req > 0 then
+            supplyF = math.max(0, math.min(1, avail / req))
+        end
     end
 
-    local function adgFor(stage, w)
-        local a = 0.10 * barnNut
-        if PN_Core and PN_Core.adgFor then
-            local okG, g = pcall(PN_Core.adgFor, PN_Core, species, stage, w or 0, barnNut)
-            if okG and type(g) == "number" then a = g end
-        end
-        a = a * maturityReserve(species, w) * (supplyF or 1.0)
-        local allowNeg = (PN_Settings and PN_Settings.adg and PN_Settings.adg.allowNegative == true)
-        if allowNeg then
-          local deficit = 1 - (supplyF or 1.0)
-          if deficit > 0 then
-            local penalty = ((PN_Settings.adg.starvationPenaltyKg or 0.05) * deficit)
-            a = a - penalty
-          end
-        else
-          if a < 0 then a = 0 end
-        end
-        return a
-    end
-
-    local rows = {
-        { key="female-open", n=counts.femaleOpen, avgW=avgW.femaleOpen, stage=stageFor("femaleOpen"), preg=0 },
-        { key="female-preg", n=counts.femalePreg, avgW=avgW.femalePreg, stage=stageFor("femalePreg"), preg=counts.femalePreg },
-        { key="male",        n=counts.male,       avgW=avgW.male,       stage=stageFor("male"),       preg=0 },
+    -- Sort stages in species-aware order (same order as overlay)
+    local order = {
+        COW     = { CALF=1, HEIFER=2, LACT=3, DRY=4, YEARLING=5, STEER=6, BULL=7, OVERAGE=8, DEFAULT=99 },
+        SHEEP   = { LAMB=1, EWE_LACT=2, EWE_DRY=3, RAM_GROW=4, RAM_ADULT=5, DEFAULT=99 },
+        PIG     = { PIGLET=1, GILT=2, SOW_LACT=3, SOW_GEST=4, BARROW=5, BOAR=6, DEFAULT=99 },
+        GOAT    = { KID=1, DOE_LACT=2, DOE_DRY=3, BUCK_GROW=4, BUCK_ADULT=5, DEFAULT=99 },
+        CHICKEN = { CHICK=1, BROILER_F=2, LAYER=3, BROILER_M=4, ROOSTER=5, DEFAULT=99 },
+        ANIMAL  = { DEFAULT=1 }
     }
+    local ord = order[(tostring(species or "ANIMAL")):upper()] or order.ANIMAL
+    local keys = {}
+    for st,_ in pairs(agg) do table.insert(keys, st) end
+    table.sort(keys, function(a,b)
+        local oa = ord[a] or ord.DEFAULT or 99
+        local ob = ord[b] or ord.DEFAULT or 99
+        if oa == ob then return a < b end
+        return oa < ob
+    end)
 
-    for _, r in ipairs(rows) do
-        if (r.n or 0) > 0 then
-            local g = adgFor(r.stage, r.avgW)
-            if r.key ~= "male" then
-                Logging.info("[PN] %s [%s/%s] | stage=%s | head=%d preg=%d | avgW=%.2fkg | Nut=%d%% | ADG=%.3f kg/d",
-                    name, species, r.key, r.stage, r.n, (r.preg or 0), r.avgW, math.floor(barnNut*100 + 0.5), g)
-            else
-                Logging.info("[PN] %s [%s/%s] | stage=%s | head=%d | avgW=%.2fkg | Nut=%d%% | ADG=%.3f kg/d",
-                    name, species, r.key, r.stage, r.n, r.avgW, math.floor(barnNut*100 + 0.5), g)
+    -- Print one line per stage with ADG adjusted by maturity + supply
+    local nutPct = math.floor(barnNut*100 + 0.5)
+    for _, st in ipairs(keys) do
+        local t = agg[st]
+        local avgW = (t.head > 0) and (t.wSum / t.head) or 0
+
+        -- Base ADG from PN_Core
+        local adg = 0.10 * barnNut
+        if PN_Core and PN_Core.adgFor then
+            local okG, g = pcall(PN_Core.adgFor, PN_Core, species, st, avgW, barnNut)
+            if okG and type(g)=="number" then adg = g end
+        end
+
+        -- Maturity taper (matches PN_Core.updateHusbandry)
+        do
+            local mk
+            if PN_Core and PN_Core.meta then
+                local m = PN_Core.meta[(tostring(species or "COW")):upper()]
+                mk = m and tonumber(m.matureKg)
+            end
+            if mk and mk > 0 and avgW > 0 then
+                local frac    = math.max(0, math.min(1, avgW / mk))
+                local reserve = math.max(0.10, 1.0 - (frac ^ 1.6))
+                adg = adg * reserve
             end
         end
+
+        -- Apply barn supply factor (live trough)
+        adg = adg * (supplyF or 1.0)
+
+        -- Optional negative ADG (starvation) per PN_Settings
+        local allowNeg = (PN_Settings and PN_Settings.adg and PN_Settings.adg.allowNegative == true)
+        if allowNeg then
+            local deficit = 1 - (supplyF or 1.0)
+            if deficit > 0 then
+                local penalty = ((PN_Settings.adg.starvationPenaltyKg or 0.05) * deficit)
+                adg = adg - penalty
+            end
+        else
+            if adg < 0 then adg = 0 end
+        end
+
+        Logging.info("[PN] %s [%s/%s] | head=%d | avgW=%.2fkg | Nut=%d%% | ADG=%.3f kg/d",
+            name, species, tostring(st), t.head or 0, avgW, nutPct, adg)
     end
 end
 
@@ -855,6 +1228,10 @@ function PN_Debug:cmdHeartbeat(periodStr)
     Logging.info("[PN] Heartbeat set to every %d ms.", ms)
 end
 
+function PN_Debug:cmdHeartbeatTick(args)
+    return self:cmdBeat(args)
+end
+
 function PN_Debug:cmdOverlayMine(state)
     if PN_UI == nil then
         Logging.info("[PN] pnOverlayMine: PN_UI not available")
@@ -876,6 +1253,47 @@ end
 -- Toggle overlay from console
 function PN_Debug:cmdOverlay()
     if PN_UI and PN_UI.toggle then PN_UI.toggle() end
+end
+
+-- Show next barn in single-barn overlay (wraps around; turns on if off)
+function PN_Debug:cmdOverlayNext()
+    if not PN_UI then Logging.info("[PN] pnOverlayNext: PN_UI not available"); return end
+    -- If UI exposes single-barn helpers, use them
+    if PN_UI.buildBarnList and PN_UI._selectBarn then
+        PN_UI.enabled = true
+        PN_UI.mode    = "single"
+        local list = PN_UI.buildBarnList() or {}
+        if #list == 0 then Logging.info("[PN] pnOverlayNext: no barns to show"); return end
+        local idx = (PN_UI._barnIdx or 0) + 1
+        if idx > #list then idx = 1 end
+        PN_UI._selectBarn(idx)
+		PN_UI._nextRefreshAt = 0
+        local e = list[idx]
+        Logging.info("[PN] Overlay: showing #%d/%d '%s'", idx, #list, tostring(e and e.name or "?"))
+        return
+    end
+    -- Fallback: just cycle once
+    if PN_UI.cycleBarnOverlay then PN_UI.cycleBarnOverlay() end
+end
+
+-- Show previous barn in single-barn overlay (wraps around; turns on if off)
+function PN_Debug:cmdOverlayPrev()
+    if not PN_UI then Logging.info("[PN] pnOverlayPrev: PN_UI not available"); return end
+    if PN_UI.buildBarnList and PN_UI._selectBarn then
+        PN_UI.enabled = true
+        PN_UI.mode    = "single"
+        local list = PN_UI.buildBarnList() or {}
+        if #list == 0 then Logging.info("[PN] pnOverlayPrev: no barns to show"); return end
+        local idx = (PN_UI._barnIdx or 1) - 1
+        if idx < 1 then idx = #list end
+        PN_UI._selectBarn(idx)
+		PN_UI._nextRefreshAt = 0
+        local e = list[idx]
+        Logging.info("[PN] Overlay: showing #%d/%d '%s'", idx, #list, tostring(e and e.name or "?"))
+        return
+    end
+    -- Fallback: two cycles to simulate "prev" (not perfect, but safe)
+    if PN_UI.cycleBarnOverlay then PN_UI.cycleBarnOverlay(); PN_UI.cycleBarnOverlay() end
 end
 
 function PN_Debug:cmdPNReload()
@@ -982,6 +1400,8 @@ if addConsoleCommand ~= nil then
     -- UI / reload / heartbeat period / logging
     addConsoleCommand("pnOverlay",            "Toggle PN overlay",                              "cmdOverlay",           PN_Debug)
     addConsoleCommand("pnOverlayMine",        "Filter overlay to my farm only (on/off|all)",    "cmdOverlayMine",       PN_Debug)
+	addConsoleCommand("pnOverlayNext", "Overlay: show next barn (single mode)",     "cmdOverlayNext", PN_Debug)
+	addConsoleCommand("pnOverlayPrev", "Overlay: show previous barn (single mode)", "cmdOverlayPrev", PN_Debug)
     addConsoleCommand("pnPNReload",           "Reload PN settings/XML packs",                   "cmdPNReload",          PN_Debug)
     addConsoleCommand("pnHeartbeat",          "Set heartbeat period ms (or 'off')",             "cmdHeartbeatSet",      PN_Debug)
     addConsoleCommand("pnSetLogLevel",        "Set PN log level (TRACE|DEBUG|INFO|WARN|ERROR)", "cmdSetLogLevel",       PN_Debug)
@@ -989,9 +1409,27 @@ if addConsoleCommand ~= nil then
     -- Diagnostics & fixers
     addConsoleCommand("pnDiag",               "Print PN module readiness",                      "cmdDiag",              PN_Debug)
     addConsoleCommand("pnFixEvents",          "Restore PN_Events methods if clobbered",         "cmdFixEvents",         PN_Debug)
+	
+    addConsoleCommand("pnStages",             "Breakdown animals by stage for an entry",        "cmdStages",            PN_Debug)
+    addConsoleCommand("pnStagesAll",          "Breakdown animals by stage for all entries",     "cmdStagesAll",         PN_Debug)
+	addConsoleCommand("pnStagesWhy", 		  "Explain steer detection & stage per cluster", 	"cmdStagesWhy", 		PN_Debug)
+
+	addConsoleCommand("pnClusterKeys",   "List non-function fields for clusters",       "cmdClusterKeys",   PN_Debug)
+	addConsoleCommand("pnFindCastration","Search cluster fields for castration hints",  "cmdFindCastration",PN_Debug)
 
     Logging.info("[PN] Console commands registered (debug).")
 else
     Logging.info("[PN] Console: addConsoleCommand not available at load")
+end
+
+
+
+-- Helper: print warning if any steer is overage in a barn entry
+local function PN_Debug_warnOverage(entry, stageLabel)
+    if stageLabel == "OVERAGE" then
+        Logging.warning("[PN] %s | steer OVERAGE: age %s mo. Consider selling.",
+            tostring(entry.name or entry.barnName or "husbandry"),
+            tostring(entry.ageMonths or "?"))
+    end
 end
 

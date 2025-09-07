@@ -13,7 +13,24 @@ PN_MODNAME = g_currentModName
 
 local PN_VERBOSE_TICKS = false
 
+-- PN depends on Realistic Livestock (extension, not standalone)
+local function PN_requireRL()
+  local mm  = g_modManager
+  local has = mm and (mm:getModByName("FS25_RealisticLivestock") or mm:getModByName("RealisticLivestock"))
+  if not has then
+    Logging.error("[PN] Realistic Livestock is required. Disabling PN features.")
+    PN_Core = PN_Core or {}; PN_Core.enabled = false
+    return false
+  end
+  PN_Core = PN_Core or {}; PN_Core.enabled = true
+  return true
+end
+
 Mission00.loadMission00Finished = Utils.prependedFunction(Mission00.loadMission00Finished, function()
+  if not PN_requireRL() then
+    return
+  end
+
   local cfg = PN_Settings.load()
   if PN_Core and PN_Core.init then
     PN_Core.init(cfg)
