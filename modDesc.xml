@@ -1,26 +1,31 @@
 <?xml version='1.0' encoding='utf-8'?>
-<modDesc descVersion="99" version="0.3.3.0">
+<modDesc descVersion="99" version="0.4.0">
   <title>Precision Nutrition</title>
   <author>SimGamerJen + GPT-5 Thinking</author>
-  <version>0.3.4-alpha</version>
+  <version>0.4.0-alpha</version>
   <description>Nutrition-aware growth and value for beef cattle, based on actual feed mix. Safe patch; no base files changed.</description>
-  <iconFilename>PrecisionNutrition.png</iconFilename>
+  <iconFilename>PrecisionNutrition.dds</iconFilename>
   <extraSourceFiles>
-	<sourceFile filename="scripts/PN_Settings.lua" />
-	<sourceFile filename="scripts/PN_FeedMatrix.lua" />   <!-- if PN_Core uses it -->
-	<sourceFile filename="scripts/PN_Core.lua" />
-	<sourceFile filename="scripts/PN_CoreCompat.lua" />   <!-- test-only shims -->
-	<sourceFile filename="scripts/PN_CoreValuePatch.lua" />
 	<sourceFile filename="scripts/PN_Load.lua" />         <!-- may merge packs into PN_Settings -->
-	<sourceFile filename="scripts/PN_HusbandryScan.lua" />
-	<sourceFile filename="scripts/PN_Husbandry.lua" />
-	<sourceFile filename="scripts/PN_Compat_RL.lua" />
-	<sourceFile filename="scripts/PN_HusbandryPatch.lua" />
-	<sourceFile filename="scripts/PN_UI.lua" />
-	<sourceFile filename="scripts/PN_Events.lua" />
 	<sourceFile filename="scripts/PN_Logger.lua" />
-	<sourceFile filename="scripts/PN_Test.lua" />         <!-- dev-only -->
 	<sourceFile filename="scripts/PN_Debug.lua" />        <!-- keep last -->
 <!--	<sourceFile filename="scripts/PN_ConflictProbe.lua"/> <!-- (UNCOMMENT TO TROUBLESHOOT POSSIBLE MOD CONFLICTS) -->
   </extraSourceFiles>
+  
+<inputBinding>
+  <actionBinding action="PN_TOGGLE_OVERLAY">
+    <binding device="KB_MOUSE_DEFAULT" input="KEY_n" alt1="true"/>
+  </actionBinding>
+  <actionBinding action="PN_NEXT_BARN">
+    <binding device="KB_MOUSE_DEFAULT" input="KEY_b" alt1="true"/>
+  </actionBinding>
+  <actionBinding action="PN_PREV_BARN">
+    <binding device="KB_MOUSE_DEFAULT" input="KEY_m" alt1="true"/>
+  </actionBinding>
+</inputBinding>
+
+<dependencies>
+  <dependency>FS25_RealisticLivestock</dependency>
+</dependencies>
+
 </modDesc>
