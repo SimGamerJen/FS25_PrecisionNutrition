@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<precisionNutrition>
+  <effects ver="1">
+    <window days="3"/> <!-- rolling window -->
+    <growth min="0.25" max="1.20"/>
+    <health underfeedSlope="6.0" recoverySlope="3.0" minNut="0.70" recNut="0.95"/>
+    <repro min="0.50" max="1.25" k="0.75" base="0.50"/>
+    <production min="0.40" max="1.10" k="0.60" base="0.40"/>
+  </effects>
+</precisionNutrition>

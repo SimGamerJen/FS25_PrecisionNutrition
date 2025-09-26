@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<precisionNutrition>
+  <!-- Daily targets per head; DMI is DRY MATTER kg/day -->
+  <!-- Calibrated so: TMR @ target DMI ≈ 100% Nut; hay-only falls ~65–75%; silage-only ~60–70% -->
+  <!-- Beef-leaning -->
+  <targets species="COW"     stage="default" energyMJ="150" proteinKg="2.0" dmiKg="14.0"/>
+  <!-- Dairy-leaning 
+  <targets species="COW"     stage="default" energyMJ="154" proteinKg="1.95" dmiKg="14.0"/>
+  -->
+  <targets species="SHEEP"   stage="default" energyMJ="8"   proteinKg="0.20" dmiKg="1.2"/>
+  <targets species="PIG"     stage="default" energyMJ="28"  proteinKg="0.45" dmiKg="2.5"/>
+  <targets species="GOAT"    stage="default" energyMJ="9"   proteinKg="0.18" dmiKg="1.2"/>
+  <targets species="CHICKEN" stage="default" energyMJ="0.7" proteinKg="0.03" dmiKg="0.08"/>
+</precisionNutrition>

@@ -1,0 +1,86 @@
+<precisionNutrition>
+  <!--
+    FS25_PrecisionNutrition external nutrition pack
+    Only adds/aliases *suitable* base-game crops.
+    Units:
+      feed@dm        = dry matter fraction (0..1) per kg as-fed
+      feed@energyMJ  = megajoules per kg as-fed
+      feed@proteinKg = kg crude protein per kg as-fed
+  -->
+
+  <!-- 1) New/explicit feeds (if not already in the mod's base matrix) -->
+  <feedMatrix>
+  
+    <!-- As-fed basis -->
+    <feed name="GRASS_WINDROW" dm="0.30" energyMJ="3.2"  proteinKg="0.036"/>
+    <feed name="HAY"           dm="0.85" energyMJ="5.2"  proteinKg="0.100"/>
+    <feed name="SILAGE"        dm="0.35" energyMJ="4.0"  proteinKg="0.040"/>
+    <feed name="TMR"           dm="0.60" energyMJ="6.6"  proteinKg="0.084"/>
+
+    <feed name="WHEAT"         dm="0.86" energyMJ="6.7"  proteinKg="0.105"/>
+    <feed name="BARLEY"        dm="0.86" energyMJ="6.5"  proteinKg="0.100"/>
+    <feed name="OAT"           dm="0.86" energyMJ="6.2"  proteinKg="0.105"/>
+    <feed name="MAIZE"         dm="0.86" energyMJ="7.8"  proteinKg="0.075"/>
+    <feed name="SORGHUM"       dm="0.86" energyMJ="7.4"  proteinKg="0.095"/>
+    <feed name="RYE"           dm="0.86" energyMJ="6.6"  proteinKg="0.110"/>
+    <feed name="TRITICALE"     dm="0.86" energyMJ="6.8"  proteinKg="0.115"/>
+
+    <feed name="POTATO"        dm="0.25" energyMJ="3.5"  proteinKg="0.020"/>
+    <feed name="SUGARBEET"     dm="0.23" energyMJ="3.3"  proteinKg="0.010"/>
+
+    <feed name="PEA"           dm="0.88" energyMJ="6.7"  proteinKg="0.210"/>
+
+    <feed name="PIG_FEED"      dm="0.90" energyMJ="8.5"  proteinKg="0.180"/>
+    <feed name="CHICKEN_FEED"  dm="0.90" energyMJ="7.1"  proteinKg="0.160"/>
+
+    <feed name="MINERAL"       dm="1.00" energyMJ="0.0"  proteinKg="0.000"/>
+	
+	<!-- CUSTOM CROPS -->
+    <!-- Grains -->
+    <feed name="RYE"           dm="0.86" energyMJ="6.6" proteinKg="0.11"/>
+    <feed name="TRITICALE"     dm="0.86" energyMJ="6.9" proteinKg="0.12"/>
+
+    <!-- Pulses / legumes (protein sources) -->
+    <feed name="DRYPEAS"       dm="0.88" energyMJ="6.8" proteinKg="0.24"/>
+    <feed name="BEANS"         dm="0.88" energyMJ="6.6" proteinKg="0.24"/>
+    <feed name="CHICKPEAS"     dm="0.88" energyMJ="6.6" proteinKg="0.23"/>
+    <feed name="LENTILS"       dm="0.88" energyMJ="6.6" proteinKg="0.25"/>
+	
+    <!-- (Optional) If your map treats fresh alfalfa/clover windrows differently from GRASS_WINDROW,
+         you can uncomment bespoke entries below. Otherwise use aliases section to map to existing keys. -->
+    <!--
+    <feed name="ALFALFA_WINDROW" dm="0.30" energyMJ="6.2" proteinKg="0.16"/>
+    <feed name="CLOVER_WINDROW"  dm="0.30" energyMJ="6.1" proteinKg="0.15"/>
+    -->
+  </feedMatrix>
+
+  <!-- 2) Aliases: map husbandry tokens to the core keys your PN feedMatrix already knows -->
+  <feedAliases>
+  
+    <alias from="DRYGRASS_WINDROW" to="HAY"/>
+    <alias from="DRY_GRASS_WINDROW" to="HAY"/>
+    <alias from="WINDROW_HAY" to="HAY"/>
+    <alias from="CUT_GRASS" to="GRASS_WINDROW"/>
+    <alias from="FORAGE" to="TMR"/>
+    <alias from="PIGFOOD" to="PIG_FEED"/>
+    <alias from="MINERAL_FEED" to="MINERAL"/>
+    <alias from="CHAFF" to="SILAGE"/>
+	
+    <!-- Fresh forage variants → treat as GRASS_WINDROW -->
+    <alias from="ALFALFA_WINDROW" to="GRASS_WINDROW"/>
+    <alias from="CLOVER_WINDROW"  to="GRASS_WINDROW"/>
+
+    <!-- Dry variants (windrowed/“hay” forms) → treat as HAY -->
+    <alias from="DRYALFALFA_WINDROW" to="HAY"/>
+    <alias from="DRYCLOVER_WINDROW"  to="HAY"/>
+
+    <!-- In case your husbandry reports generic FORAGE for TMR -->
+<!--<alias from="FORAGE"        to="TMR"/>
+    <alias from="FORAGE_MIXING" to="TMR"/>
+    <alias from="FORAGE_MIXER"  to="TMR"/> -->
+  </feedAliases>
+
+  <!-- 3) (Optional) Target tweaks per species/stage; keep or remove as you like
+  <targets species="COW" stage="DEFAULT" energyMJ="92" proteinKg="1.65" dmiKg="12.5"/>
+  -->
+</precisionNutrition>

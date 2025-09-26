@@ -1,0 +1,5 @@
+﻿<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<pn ver="1">
+    <ui anchor="tl" alpha="0.600000" maxRows="14" marginX="0.200000" marginY="0.038000" font="0.014000" rowH="0.018000" padX="0.010000" padY="0.010000" fixedW="0.430000" enabled="true" mode="single"/>
+    <cfg refreshMs="1000" spacer="true" preferLive="true" useSupplyFactor="true"/>
+</pn>

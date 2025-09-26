@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<precisionNutrition>
+  <feedMatrix>
+    <!-- Ruminant forages (as-fed basis) -->
+    <feed name="GRASS_WINDROW" dm="0.30" energyMJ="3.2"  proteinKg="0.036"/>
+    <feed name="HAY"           dm="0.85" energyMJ="5.2"  proteinKg="0.100"/>
+    <feed name="SILAGE"        dm="0.35" energyMJ="3.8"  proteinKg="0.035"/>
+    <feed name="TMR"           dm="0.60" energyMJ="6.6"  proteinKg="0.084"/>
+
+    <!-- Common grains & pulses (as-fed basis) -->
+    <feed name="WHEAT"   dm="0.86" energyMJ="6.7"  proteinKg="0.105"/>
+    <feed name="BARLEY"  dm="0.86" energyMJ="6.5"  proteinKg="0.100"/>
+    <feed name="OAT"     dm="0.86" energyMJ="6.2"  proteinKg="0.105"/>
+    <feed name="MAIZE"   dm="0.86" energyMJ="7.8"  proteinKg="0.075"/>
+    <feed name="SORGHUM" dm="0.86" energyMJ="7.4"  proteinKg="0.095"/>
+    <feed name="RYE"     dm="0.86" energyMJ="6.6"  proteinKg="0.110"/>
+    <feed name="TRITICALE" dm="0.86" energyMJ="6.8" proteinKg="0.115"/>
+
+    <!-- Protein sources (as-fed basis) -->
+    <feed name="SOYBEAN"  dm="0.87" energyMJ="7.4"  proteinKg="0.235"/>
+    <feed name="CANOLA"   dm="0.90" energyMJ="7.2"  proteinKg="0.200"/>
+    <feed name="SUNFLOWER" dm="0.90" energyMJ="7.0" proteinKg="0.190"/>
+    <feed name="PEA"      dm="0.88" energyMJ="6.7"  proteinKg="0.210"/>
+    <feed name="BEANS"    dm="0.88" energyMJ="6.6"  proteinKg="0.220"/>
+    <feed name="LENTILS"  dm="0.88" energyMJ="6.5"  proteinKg="0.210"/>
+    <feed name="CHICKPEAS" dm="0.88" energyMJ="6.4" proteinKg="0.200"/>
+
+    <!-- Horses -->
+    <feed name="OATS"       dm="0.86" energyMJ="6.2"  proteinKg="0.110"/>
+    <feed name="HORSE_FEED" dm="0.88" energyMJ="7.2"  proteinKg="0.120"/>
+    <feed name="STRAW"      dm="0.85" energyMJ="2.5"  proteinKg="0.020"/>
+
+    <!-- Chickens -->
+    <feed name="CHICKEN_FEED" dm="0.90" energyMJ="7.1" proteinKg="0.160"/>
+
+    <!-- Mineral feed (no energy/protein contribution) -->
+    <feed name="MINERAL_FEED" dm="1.00" energyMJ="0.0" proteinKg="0.000"/>
+  </feedMatrix>
+</precisionNutrition>
