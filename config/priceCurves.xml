@@ -1,6 +1,0 @@
-<priceCurves>
-  <band name="grassFed" minW="520" maxW="640" base="1.05"/>
-  <band name="grainFinished" minW="600" maxW="720" base="1.08"/>
-  <band name="light" maxW="480" base="0.90"/>
-  <band name="overfat" minW="780" base="0.92"/>
-</priceCurves>
