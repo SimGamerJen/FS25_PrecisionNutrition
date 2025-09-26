@@ -17,7 +17,9 @@
 * **Maturity taper:** heavier animals gain more slowly as they approach mature weight.
 * **Condition (long-term):** sustained good feeding nudges a small bonus; poor feeding nudges a small malus.
 
-[**screenshot: overlay panel** — show a barn with Nut %, ADG (kg/day), and animals by stage. Ideal: one barn at ~84% Nut.]
+<img width="1646" height="471" alt="image" src="https://github.com/user-attachments/assets/b38b870e-37b6-4f1d-8410-080045366471" />
+<img width="1677" height="464" alt="image" src="https://github.com/user-attachments/assets/3ef57714-908f-43d1-9e4d-c6785d48452e" />
+
 
 ---
 
@@ -84,7 +86,7 @@ pnDumpHusbandries
 * Prints a numbered list of husbandries PN knows about.
 * Use that index with other commands like `pnBeat`, `pnInspectTrough`, etc.
 
-[**screenshot: console** showing `pnDumpHusbandries` list with indices and names.]
+<img width="1223" height="854" alt="image" src="https://github.com/user-attachments/assets/696fd6e1-652b-4508-b764-f937bd55fcf2" />
 
 ---
 
@@ -120,7 +122,7 @@ Adds a stage list under each barn:
 * Run again after changing feed to see the difference within minutes.
 * If nothing prints, let time run a bit (PN updates during the heartbeat).
 
-[**screenshot: console** with `pnShowEffects stages` lines.]
+<img width="1716" height="677" alt="image" src="https://github.com/user-attachments/assets/24e5219c-1417-4008-8f97-d9f04159e097" />
 
 ---
 
@@ -139,7 +141,7 @@ pnBeat 10
 pnBeat 16
 ```
 
-[**screenshot: console** with `pnBeat` output for a barn.]
+<img width="1770" height="368" alt="image" src="https://github.com/user-attachments/assets/c031dbeb-8e11-47f8-82d5-57f96e5586e0" />
 
 ---
 
@@ -166,7 +168,7 @@ pnStages <index>
 
 * Prints headcount and average weight per stage, min/avg/max age, and—if configured—price guidance for over-age animals.
 
-[**screenshot: console** with `pnStages 10` table.]
+<img width="1819" height="465" alt="image" src="https://github.com/user-attachments/assets/4c646b71-1bf5-4f15-acf4-6357e1930c91" />
 
 #### “Why is this a steer/bull/etc.?” (debug)
 
@@ -176,7 +178,7 @@ pnStagesWhy <index>
 
 * Prints per-cluster info (gender, age, castration hints, resolved stage) for the barn.
 
-[**screenshot: console** excerpt from `pnStagesWhy 10`.]
+<img width="1869" height="764" alt="image" src="https://github.com/user-attachments/assets/c075c942-15b6-4c89-9c8e-5cda0fee7eb1" />
 
 ---
 
