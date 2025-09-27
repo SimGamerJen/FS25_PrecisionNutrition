@@ -21,6 +21,7 @@
 <img width="1646" height="471" alt="image" src="https://github.com/user-attachments/assets/b38b870e-37b6-4f1d-8410-080045366471" />
 <img width="1677" height="464" alt="image" src="https://github.com/user-attachments/assets/3ef57714-908f-43d1-9e4d-c6785d48452e" />
 
+**I've deliberately acquired a variety of cattle specifically to demonstrate a variety of stages use during animal growth and development**
 
 ---
 
