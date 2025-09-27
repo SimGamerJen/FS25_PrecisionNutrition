@@ -65,7 +65,9 @@
 
 ## Installation & Compatibility
 
+* **REQUIRES REALISTIC LIVESTOCK**
 * Drop the mod zip into your FS25 mods folder as usual.
+* The modSettings folder can be downloaded to allow for customisation of stages, feedMatrix, aliases and more.
 * Compatible with most animal mods/maps; we read standard trough levels/consumption.
 * **No save conversion**; can be added/removed safely (you’ll just lose the PN effects when removed).
 
