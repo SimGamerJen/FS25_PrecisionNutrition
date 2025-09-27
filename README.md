@@ -3,6 +3,7 @@
 > **Version:** 0.4.0-alpha
 > **Works with:** Any map that has vanilla-style animal husbandries
 > **TL;DR:** Better feed → better growth. You can *see* it live (Nut %, ADG, ADG×). Powerful console tools included.
+> **REQUIRES REALISTIC LIVESTOCK**
 
 ---
 
