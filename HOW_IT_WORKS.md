@@ -19,6 +19,21 @@ Pipeline (per barn, every heartbeat):
 5. Slowly drift **Condition** up/down based on sustained Nut, and persist snapshot for overlay/debug.
 
 [DIAGRAM – “Flow from trough → Nut → ADG× → ADG”; annotate delta vs estimate paths]
+## Flow: Trough → Nut → ADG× → ADG
+
+**What you’re looking at:** How feed in the **trough** becomes **Nut** (0–100%), drives the **ADG×** multiplier, and yields **ADG** (kg/day).  
+**Paths:** **Delta (observed)** = solid; **Estimate (projected)** = dashed.
+
+<img width="1967" height="623" alt="5baed4c6-af9c-4a6f-9cd2-a071d868a089" src="https://github.com/user-attachments/assets/540f6e2b-b546-4a23-a2ae-83ba7311c27f" />
+
+**Legend**
+- **Delta (observed):** solid arrows — actual write-back chain from current trough → Nut → ADG× → ADG.
+- **Estimate (projected):** dashed arrows — model prediction from snapshot without committing changes.
+
+**Notes**
+- *Nut* = `f(tokens, DMI)` (class-aware token mix → % nutrition score).  
+- *ADG×* = `g(Nut, stage[, condition])` (stage curves + condition effects).  
+- *ADG* = `baseADG × ADG×` (kg/day), written back to RL for pricing/weight.
 
 ---
 
