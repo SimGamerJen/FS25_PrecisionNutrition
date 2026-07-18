@@ -354,3 +354,11 @@ If you hit a barn that “doesn’t move” or Nut looks wrong:
 3. Tell us what feed was in the trough.
 
 We’ll tune it fast. Enjoy! 🐄🌾
+
+---
+
+## Licence and Permissions
+
+Copyright © 2026 SimGamerJen. All rights reserved.
+
+You may download and use this mod for personal use. You may not modify, redistribute, re-upload, or publish this mod, in whole or in part, or any derivative version without prior written permission from SimGamerJen.
