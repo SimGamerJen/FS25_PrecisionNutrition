@@ -1,0 +1,184 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<GUI name="PNNutritionMenu" onOpen="onOpen" onClose="onClose" onCreate="onCreate" onEscPressed="onClickBack">
+    <GuiElement profile="newLayer"/>
+    <Bitmap profile="dialogFullscreenBg" id="dialogBg"/>
+    <GuiElement profile="fs25_dialogBg" id="dialogElement" size="1560px 900px">
+        <ThreePartBitmap profile="fs25_dialogBgMiddle"/>
+        <ThreePartBitmap profile="fs25_dialogBgTop"/>
+        <ThreePartBitmap profile="fs25_dialogBgBottom"/>
+        <GuiElement profile="fs25_dialogContentContainer">
+            <Text profile="fs25_dialogTitle" id="dialogTitleElement"
+                  position="0px -30px" text="$l10n_pn_ui_title"/>
+
+            <Text profile="pn_husbandryTitle" id="husbandryText"
+                  position="20px -70px" size="1385px 30px" text=""/>
+
+            <GuiElement profile="pn_summaryBand" position="20px -108px" size="1385px 68px">
+                <Text profile="pn_summaryLabel" position="0px -6px" size="195px 20px" text="$l10n_pn_ui_summary_head"/>
+                <Text profile="pn_summaryValue" id="headValue" position="0px -28px" size="195px 32px" text="-"/>
+                <Text profile="pn_summaryLabel" position="195px -6px" size="195px 20px" text="$l10n_pn_ui_summary_ration"/>
+                <Text profile="pn_summaryValue" id="rationValue" position="195px -28px" size="195px 32px" text="-"/>
+                <Text profile="pn_summaryLabel" position="390px -6px" size="195px 20px" text="$l10n_pn_ui_summary_energy"/>
+                <Text profile="pn_summaryValue" id="energyValue" position="390px -28px" size="195px 32px" text="-"/>
+                <Text profile="pn_summaryLabel" position="585px -6px" size="195px 20px" text="$l10n_pn_ui_summary_protein"/>
+                <Text profile="pn_summaryValue" id="proteinValue" position="585px -28px" size="195px 32px" text="-"/>
+                <Text profile="pn_summaryLabel" position="780px -6px" size="195px 20px" text="$l10n_pn_ui_summary_rlrm"/>
+                <Text profile="pn_summaryValue" id="rlrmValue" position="780px -28px" size="195px 32px" text="-"/>
+                <Text profile="pn_summaryLabel" position="975px -6px" size="195px 20px" text="$l10n_pn_ui_summary_effective"/>
+                <Text profile="pn_summaryValue" id="effectiveValue" position="975px -28px" size="195px 32px" text="-"/>
+                <Text profile="pn_summaryLabel" position="1170px -6px" size="195px 20px" text="$l10n_pn_ui_summary_dm"/>
+                <Text profile="pn_summaryValue" id="dryMatterValue" position="1170px -28px" size="195px 32px" text="-"/>
+            </GuiElement>
+
+            <Text profile="pn_stageSummary" id="stageText"
+                  position="20px -184px" size="1385px 28px" text=""/>
+
+            <GuiElement profile="pn_tableHeader" position="20px -220px" size="1385px 56px">
+                <Bitmap position="0px 0px" size="590px 20px" imageColor="0.10 0.11 0.11 0.96"/>
+                <Bitmap position="590px 0px" size="380px 20px" imageColor="0.13 0.15 0.13 0.96"/>
+                <Bitmap position="970px 0px" size="400px 20px" imageColor="0.10 0.11 0.11 0.96"/>
+                <Text profile="pn_groupHeader" position="10px 0px" size="570px 18px" text="$l10n_pn_ui_group_animal"/>
+                <Text profile="pn_groupHeader" position="600px 0px" size="360px 18px" text="$l10n_pn_ui_group_growth"/>
+                <Text profile="pn_groupHeader" position="980px 0px" size="380px 18px" text="$l10n_pn_ui_group_nutrition"/>
+
+                <Text profile="pn_headerLeft" position="12px -26px" size="246px 24px" text="$l10n_pn_ui_col_animal"/>
+                <Text profile="pn_headerRight" position="270px -26px" size="70px 24px" text="$l10n_pn_ui_col_age"/>
+                <Text profile="pn_headerLeft" position="362px -26px" size="216px 24px" text="$l10n_pn_ui_col_stage"/>
+                <Text profile="pn_headerRight" position="602px -26px" size="206px 24px" text="$l10n_pn_ui_col_weight"/>
+                <Text profile="pn_headerRight" position="832px -26px" size="126px 24px" text="$l10n_pn_ui_col_development"/>
+                <Text profile="pn_headerRight" position="982px -26px" size="91px 24px" text="$l10n_pn_ui_col_health"/>
+                <Text profile="pn_headerRight" position="1097px -26px" size="106px 24px" text="$l10n_pn_ui_col_quality"/>
+                <Text profile="pn_headerRight" position="1227px -26px" size="131px 24px" text="$l10n_pn_ui_col_effective"/>
+
+                <Bitmap position="270px -20px" size="1px 36px" imageColor="0.75 0.77 0.78 0.38"/>
+                <Bitmap position="350px -20px" size="1px 36px" imageColor="0.75 0.77 0.78 0.38"/>
+                <Bitmap position="590px 0px" size="3px 56px" imageColor="0.52 0.75 0.10 0.85"/>
+                <Bitmap position="820px -20px" size="1px 36px" imageColor="0.75 0.77 0.78 0.38"/>
+                <Bitmap position="970px 0px" size="3px 56px" imageColor="0.52 0.75 0.10 0.85"/>
+                <Bitmap position="1085px -20px" size="1px 36px" imageColor="0.75 0.77 0.78 0.38"/>
+                <Bitmap position="1215px -20px" size="1px 36px" imageColor="0.75 0.77 0.78 0.38"/>
+            </GuiElement>
+
+            <Text profile="fs25_dialogText" id="emptyText"
+                  position="20px -440px" size="1385px 40px" visible="false" text="$l10n_pn_ui_waiting"/>
+
+            <SmoothList profile="pn_animalList" id="animalList"
+                        position="20px -276px" size="1385px 468px"
+                        supportsMouseScrolling="true" ignoreMouse="false"
+                        focusInit="onOpen" focusChangeTop="nil" focusChangeBottom="nil">
+                <ListItem profile="pn_animalListItem" size="1370px 42px">
+                    <Bitmap position="590px 0px" size="380px 42px" imageColor="0.10 0.13 0.10 0.16"/>
+                    <Text profile="pn_cellLeft" position="12px 0px" size="246px 42px" textAlignment="left" name="animalName"/>
+                    <Text profile="pn_cellRight" position="280px 0px" size="60px 42px" textAlignment="right" name="age"/>
+                    <Text profile="pn_cellLeft" position="362px 0px" size="216px 42px" textAlignment="left" name="stage"/>
+                    <Text profile="pn_cellRight" position="602px 0px" size="206px 42px" textAlignment="right" name="weight"/>
+                    <Text profile="pn_cellRight" position="832px 0px" size="126px 42px" textAlignment="right" name="development"/>
+                    <Text profile="pn_cellRight" position="982px 0px" size="91px 42px" textAlignment="right" name="health"/>
+                    <Text profile="pn_cellRight" position="1097px 0px" size="106px 42px" textAlignment="right" name="quality"/>
+                    <Text profile="pn_cellRight" position="1227px 0px" size="131px 42px" textAlignment="right" name="effective"/>
+                    <Bitmap position="270px 0px" size="1px 42px" imageColor="0.75 0.77 0.78 0.22"/>
+                    <Bitmap position="350px 0px" size="1px 42px" imageColor="0.75 0.77 0.78 0.22"/>
+                    <Bitmap position="590px 0px" size="3px 42px" imageColor="0.52 0.75 0.10 0.58"/>
+                    <Bitmap position="820px 0px" size="1px 42px" imageColor="0.75 0.77 0.78 0.22"/>
+                    <Bitmap position="970px 0px" size="3px 42px" imageColor="0.52 0.75 0.10 0.58"/>
+                    <Bitmap position="1085px 0px" size="1px 42px" imageColor="0.75 0.77 0.78 0.22"/>
+                    <Bitmap position="1215px 0px" size="1px 42px" imageColor="0.75 0.77 0.78 0.22"/>
+                </ListItem>
+            </SmoothList>
+
+            <ThreePartBitmap profile="pn_sliderBox" id="animalSliderBox"
+                             position="-30px -276px" size="12px 468px">
+                <Slider profile="fs25_listSlider" size="6px 460px" dataElementId="animalList"/>
+            </ThreePartBitmap>
+        </GuiElement>
+
+        <BoxLayout profile="fs25_dialogButtonBox" id="buttonsPC">
+            <Button profile="pn_previousButton" text="$l10n_pn_ui_previous_husbandry"
+                    onClick="onClickPrevious" id="prevButton"/>
+            <Bitmap profile="fs25_dialogButtonBoxSeparator"/>
+            <Button profile="pn_nextButton" text="$l10n_pn_ui_next_husbandry"
+                    onClick="onClickNext" id="nextButton"/>
+            <Bitmap profile="fs25_dialogButtonBoxSeparator"/>
+            <Button profile="buttonBack" text="$l10n_pn_ui_exit" onClick="onClickBack" id="backButton"/>
+        </BoxLayout>
+    </GuiElement>
+
+    <GUIProfiles>
+        <Profile name="pn_husbandryTitle" extends="baseReference" with="anchorTopLeft">
+            <textBold value="true"/>
+            <textSize value="20px"/>
+            <textAlignment value="left"/>
+            <textColor value="$preset_fs25_colorMainLight"/>
+        </Profile>
+        <Profile name="pn_summaryBand" extends="baseReference" with="anchorTopStretchingX">
+            <imageColor value="$preset_fs25_colorGreyDark_50"/>
+        </Profile>
+        <Profile name="pn_summaryLabel" extends="baseReference" with="anchorTopLeft">
+            <textBold value="true"/>
+            <textUpperCase value="true"/>
+            <textSize value="13px"/>
+            <textAlignment value="center"/>
+            <textColor value="$preset_colorWhite_50"/>
+        </Profile>
+        <Profile name="pn_summaryValue" extends="baseReference" with="anchorTopLeft">
+            <textBold value="true"/>
+            <textSize value="22px"/>
+            <textAlignment value="center"/>
+            <textColor value="$preset_fs25_colorMainLight"/>
+        </Profile>
+        <Profile name="pn_stageSummary" extends="baseReference" with="anchorTopLeft">
+            <textBold value="false"/>
+            <textSize value="15px"/>
+            <textAlignment value="left"/>
+            <textColor value="$preset_colorWhite_50"/>
+        </Profile>
+        <Profile name="pn_tableHeader" extends="baseReference" with="anchorTopLeft"/>
+        <Profile name="pn_headerLeft" extends="baseReference" with="anchorTopLeft">
+            <textBold value="true"/>
+            <textUpperCase value="true"/>
+            <textSize value="14px"/>
+            <textAlignment value="left"/>
+            <textColor value="$preset_fs25_colorMainLight"/>
+        </Profile>
+        <Profile name="pn_groupHeader" extends="baseReference" with="anchorTopLeft">
+            <textBold value="true"/>
+            <textUpperCase value="true"/>
+            <textSize value="11px"/>
+            <textAlignment value="center"/>
+            <textColor value="$preset_fs25_colorMainHighlight"/>
+        </Profile>
+        <Profile name="pn_headerCenter" extends="pn_headerLeft">
+            <textAlignment value="center"/>
+        </Profile>
+        <Profile name="pn_headerRight" extends="pn_headerLeft">
+            <textAlignment value="right"/>
+        </Profile>
+        <Profile name="pn_animalList" extends="emptyPanel" with="anchorStretchingYLeft pivotTopLeft"/>
+        <Profile name="pn_animalListItem" extends="baseReference" with="anchorTopStretchingX alternating">
+            <height value="42px"/>
+            <imageColor value="$preset_fs25_colorGrey"/>
+            <imageSelectedColor value="$preset_fs25_colorMainHighlight"/>
+            <alternateBackgroundColor value="$preset_fs25_colorGreyDark_50"/>
+        </Profile>
+        <Profile name="pn_cellLeft" extends="baseReference" with="anchorStretchingYLeft">
+            <textBold value="false"/>
+            <textSize value="15px"/>
+            <textAlignment value="left"/>
+            <textColor value="$preset_fs25_colorMainLight"/>
+            <textSelectedColor value="$preset_fs25_colorMainDark"/>
+        </Profile>
+        <Profile name="pn_cellCenter" extends="pn_cellLeft">
+            <textAlignment value="center"/>
+        </Profile>
+        <Profile name="pn_cellRight" extends="pn_cellLeft">
+            <textAlignment value="right"/>
+        </Profile>
+        <Profile name="pn_sliderBox" extends="fs25_listSliderBox" with="anchorTopRight"/>
+        <Profile name="pn_previousButton" extends="fs25_wideButton" with="touchButton">
+            <inputAction value="MENU_PAGE_PREV"/>
+        </Profile>
+        <Profile name="pn_nextButton" extends="fs25_wideButton" with="touchButton">
+            <inputAction value="MENU_PAGE_NEXT"/>
+        </Profile>
+    </GUIProfiles>
+</GUI>

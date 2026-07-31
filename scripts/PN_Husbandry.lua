@@ -1,43 +1,90 @@
--- FS25_PrecisionNutrition / scripts / PN_Husbandry.lua
--- Compatibility shim so legacy PN code that expects "PN_Husbandry" keeps working.
--- It delegates to PN_HusbandryScan (the real implementation).
+PN_Husbandry = PN_Husbandry or {}
+PN_Husbandry.entriesByKey = PN_Husbandry.entriesByKey or {}
+PN_Husbandry.entries = PN_Husbandry.entries or {}
 
-PN_Husbandry = {}
-
-local function _scanReady()
-    return PN_HusbandryScan ~= nil and PN_HusbandryScan.isReady ~= nil and PN_HusbandryScan:isReady()
+local function lower(value)
+    return tostring(value or ""):lower()
 end
 
-function PN_Husbandry:isReady()
-    return _scanReady()
-end
-
-function PN_Husbandry:getAll()
-    if PN_HusbandryScan ~= nil and PN_HusbandryScan.getAll ~= nil then
-        return PN_HusbandryScan:getAll()
+local function ownerFarmId(placeable)
+    if placeable == nil then return 0 end
+    if placeable.getOwnerFarmId ~= nil then
+        local ok, farmId = pcall(placeable.getOwnerFarmId, placeable)
+        if ok and farmId ~= nil then return farmId end
     end
-    return {}
+    return placeable.ownerFarmId or 0
 end
 
-function PN_Husbandry:getByFarm(farmId)
-    if PN_HusbandryScan ~= nil and PN_HusbandryScan.getByFarm ~= nil then
-        return PN_HusbandryScan:getByFarm(farmId)
+local function objectId(placeable)
+    if NetworkUtil ~= nil and NetworkUtil.getObjectId ~= nil then
+        local ok, id = pcall(NetworkUtil.getObjectId, placeable)
+        if ok and id ~= nil and id ~= 0 then return id end
     end
-    return {}
+    return placeable.id or placeable.rootNode or tostring(placeable)
 end
 
-function PN_Husbandry:getFirstByType(wantedType)
-    if PN_HusbandryScan ~= nil and PN_HusbandryScan.getFirstByType ~= nil then
-        return PN_HusbandryScan:getFirstByType(wantedType)
+local function displayName(placeable)
+    if placeable ~= nil and placeable.getName ~= nil then
+        local ok, name = pcall(placeable.getName, placeable)
+        if ok and name ~= nil and name ~= "" then return name end
     end
-    return nil
+    return "Animal husbandry"
 end
 
--- Optional: small log once scan becomes ready (safe + quiet otherwise)
-function PN_Husbandry:onMissionStarted()
-    if PN_HusbandryScan ~= nil then
-        -- Let the scanner run its own discovery; nothing to do here.
+local function isHusbandry(placeable)
+    return placeable ~= nil and placeable.spec_husbandryAnimals ~= nil
+end
+
+local function clusterSystem(placeable)
+    local spec = placeable ~= nil and placeable.spec_husbandryAnimals or nil
+    return spec ~= nil and spec.clusterSystem or nil
+end
+
+function PN_Husbandry.getKey(placeable)
+    return string.format("%s:%s", tostring(ownerFarmId(placeable)), tostring(objectId(placeable)))
+end
+
+function PN_Husbandry.getOrCreate(placeable)
+    if not isHusbandry(placeable) then return nil end
+    local key = PN_Husbandry.getKey(placeable)
+    local entry = PN_Husbandry.entriesByKey[key]
+    if entry == nil then
+        entry = { key=key }
+        PN_Husbandry.entriesByKey[key] = entry
+        table.insert(PN_Husbandry.entries, entry)
+    end
+    entry.placeable = placeable
+    entry.clusterSystem = clusterSystem(placeable)
+    entry.farmId = ownerFarmId(placeable)
+    entry.name = displayName(placeable)
+    entry.seen = true
+    return entry
+end
+
+function PN_Husbandry.getFromAnimal(animal)
+    local system = animal ~= nil and animal.clusterSystem or nil
+    return PN_Husbandry.getOrCreate(system ~= nil and system.owner or nil)
+end
+
+function PN_Husbandry.scan()
+    for _, entry in ipairs(PN_Husbandry.entries) do entry.seen = false end
+    local placeableSystem = g_currentMission ~= nil and g_currentMission.placeableSystem or nil
+    for _, placeable in ipairs(placeableSystem ~= nil and placeableSystem.placeables or {}) do
+        PN_Husbandry.getOrCreate(placeable)
+    end
+    for i = #PN_Husbandry.entries, 1, -1 do
+        local entry = PN_Husbandry.entries[i]
+        if not entry.seen then
+            PN_Husbandry.entriesByKey[entry.key] = nil
+            if PN_Core ~= nil then PN_Core.metricsByKey[entry.key] = nil end
+            table.remove(PN_Husbandry.entries, i)
+        end
     end
 end
 
-addModEventListener(PN_Husbandry)
+function PN_Husbandry.reset()
+    PN_Husbandry.entriesByKey = {}
+    PN_Husbandry.entries = {}
+end
+
+return PN_Husbandry

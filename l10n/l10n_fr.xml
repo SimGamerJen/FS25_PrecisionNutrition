@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<l10n>
+    <texts>
+        <text name="input_PN_TOGGLE_OVERLAY" text="Ouvrir Nutrition de précision"/>
+        <text name="pn_ui_title" text="NUTRITION DE PRÉCISION"/>
+        <text name="pn_ui_waiting" text="En attente des données d'élevage de RLRM..."/>
+        <text name="pn_ui_pending" text="en attente"/>
+        <text name="pn_ui_unknown" text="Avertissement : %.1f kg d'aliment inconnu"/>
+        <text name="pn_ui_no_individuals" text="Aucun détail individuel reçu"/>
+        <text name="pn_ui_gender_female_short" text="F"/>
+        <text name="pn_ui_gender_male_short" text="M"/>
+        <text name="pn_ui_status_pregnant" text="gestante"/>
+        <text name="pn_ui_status_lactating" text="allaitante"/>
+        <text name="pn_ui_status_castrated" text="castré"/>
+        <text name="pn_ui_table_barn" text="%s  |  %s  |  élevage %d/%d"/>
+        <text name="pn_ui_summary_head" text="ANIMAUX"/>
+        <text name="pn_ui_summary_ration" text="RATION"/>
+        <text name="pn_ui_summary_energy" text="ÉNERGIE"/>
+        <text name="pn_ui_summary_protein" text="PROTÉINES"/>
+        <text name="pn_ui_summary_rlrm" text="ALIM. RLRM"/>
+        <text name="pn_ui_summary_effective" text="EFFECTIF"/>
+        <text name="pn_ui_summary_dm" text="MAT. SÈCHE"/>
+        <text name="pn_ui_table_stages" text="STADES DU TROUPEAU  %s"/>
+        <text name="pn_ui_col_animal" text="ANIMAL"/>
+        <text name="pn_ui_col_age" text="ÂGE (MOIS)"/>
+        <text name="pn_ui_col_stage" text="STADE / ÉTAT"/>
+        <text name="pn_ui_col_weight" text="POIDS / CIBLE"/>
+        <text name="pn_ui_col_development" text="DÉVELOPPEMENT"/>
+        <text name="pn_ui_col_health" text="SANTÉ"/>
+        <text name="pn_ui_col_quality" text="QUALITÉ"/>
+        <text name="pn_ui_col_effective" text="EFFECTIF"/>
+        <text name="pn_ui_group_animal" text="DÉTAILS DE L’ANIMAL"/>
+        <text name="pn_ui_group_growth" text="CROISSANCE"/>
+        <text name="pn_ui_group_nutrition" text="NUTRITION"/>
+        <text name="pn_ui_previous_husbandry" text="ÉLEVAGE PRÉCÉDENT"/>
+        <text name="pn_ui_next_husbandry" text="ÉLEVAGE SUIVANT"/>
+        <text name="pn_ui_exit" text="QUITTER"/>
+        <text name="pn_console_status" text="Afficher l'état et les valeurs actuelles de Nutrition de précision"/>
+        <text name="pn_console_reload" text="Recharger les paramètres externes de Nutrition de précision"/>
+    </texts>
+</l10n>
