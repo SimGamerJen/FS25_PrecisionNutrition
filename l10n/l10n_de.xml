@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<l10n>
+    <texts>
+        <text name="input_PN_TOGGLE_OVERLAY" text="Präzisionsfütterung öffnen"/>
+        <text name="pn_ui_title" text="PRÄZISIONSFÜTTERUNG"/>
+        <text name="pn_ui_waiting" text="Warte auf Tierhaltungsdaten von RLRM..."/>
+        <text name="pn_ui_pending" text="ausstehend"/>
+        <text name="pn_ui_unknown" text="Warnung: %.1f kg unbekanntes Futter"/>
+        <text name="pn_ui_no_individuals" text="Keine Einzeltierdaten empfangen"/>
+        <text name="pn_ui_gender_female_short" text="W"/>
+        <text name="pn_ui_gender_male_short" text="M"/>
+        <text name="pn_ui_status_pregnant" text="trächtig"/>
+        <text name="pn_ui_status_lactating" text="laktierend"/>
+        <text name="pn_ui_status_castrated" text="kastriert"/>
+        <text name="pn_ui_table_barn" text="%s  |  %s  |  Tierhaltung %d/%d"/>
+        <text name="pn_ui_summary_head" text="TIERE"/>
+        <text name="pn_ui_summary_ration" text="RATION"/>
+        <text name="pn_ui_summary_energy" text="ENERGIE"/>
+        <text name="pn_ui_summary_protein" text="PROTEIN"/>
+        <text name="pn_ui_summary_rlrm" text="RLRM-FUTTER"/>
+        <text name="pn_ui_summary_effective" text="EFFEKTIV"/>
+        <text name="pn_ui_summary_dm" text="TROCKENMASSE"/>
+        <text name="pn_ui_table_stages" text="HERDENPHASEN  %s"/>
+        <text name="pn_ui_col_animal" text="TIER"/>
+        <text name="pn_ui_col_age" text="ALTER (M)"/>
+        <text name="pn_ui_col_stage" text="PHASE / STATUS"/>
+        <text name="pn_ui_col_weight" text="GEWICHT / ZIEL"/>
+        <text name="pn_ui_col_development" text="ENTWICKLUNG"/>
+        <text name="pn_ui_col_health" text="GESUNDH."/>
+        <text name="pn_ui_col_quality" text="QUALITÄT"/>
+        <text name="pn_ui_col_effective" text="EFFEKTIV"/>
+        <text name="pn_ui_group_animal" text="TIERDETAILS"/>
+        <text name="pn_ui_group_growth" text="WACHSTUM"/>
+        <text name="pn_ui_group_nutrition" text="ERNÄHRUNG"/>
+        <text name="pn_ui_previous_husbandry" text="VORHERIGE TIERHALTUNG"/>
+        <text name="pn_ui_next_husbandry" text="NÄCHSTE TIERHALTUNG"/>
+        <text name="pn_ui_exit" text="SCHLIESSEN"/>
+        <text name="pn_console_status" text="Status und aktuelle Werte der Präzisionsfütterung anzeigen"/>
+        <text name="pn_console_reload" text="Externe Einstellungen der Präzisionsfütterung neu laden"/>
+    </texts>
+</l10n>

@@ -1,31 +1,118 @@
-<?xml version='1.0' encoding='utf-8'?>
-<modDesc descVersion="99" version="0.4.0">
-  <title>Precision Nutrition</title>
-  <author>SimGamerJen + GPT-5 Thinking</author>
-  <version>0.4.0-alpha</version>
-  <description>Nutrition-aware growth and value for beef cattle, based on actual feed mix. Safe patch; no base files changed.</description>
-  <iconFilename>PrecisionNutrition.dds</iconFilename>
-  <extraSourceFiles>
-	<sourceFile filename="scripts/PN_Load.lua" />         <!-- may merge packs into PN_Settings -->
-	<sourceFile filename="scripts/PN_Logger.lua" />
-	<sourceFile filename="scripts/PN_Debug.lua" />        <!-- keep last -->
-<!--	<sourceFile filename="scripts/PN_ConflictProbe.lua"/> <!-- (UNCOMMENT TO TROUBLESHOOT POSSIBLE MOD CONFLICTS) -->
-  </extraSourceFiles>
-  
-<inputBinding>
-  <actionBinding action="PN_TOGGLE_OVERLAY">
-    <binding device="KB_MOUSE_DEFAULT" input="KEY_n" alt1="true"/>
-  </actionBinding>
-  <actionBinding action="PN_NEXT_BARN">
-    <binding device="KB_MOUSE_DEFAULT" input="KEY_b" alt1="true"/>
-  </actionBinding>
-  <actionBinding action="PN_PREV_BARN">
-    <binding device="KB_MOUSE_DEFAULT" input="KEY_m" alt1="true"/>
-  </actionBinding>
-</inputBinding>
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<modDesc descVersion="110">
+    <author>SimGamerJen</author>
+    <version>0.5.0.4</version>
 
-<dependencies>
-  <dependency>FS25_RealisticLivestock</dependency>
-</dependencies>
+    <title>
+        <en>Precision Nutrition</en>
+        <de>Präzisionsfütterung</de>
+        <fr>Nutrition de précision</fr>
+    </title>
 
+    <description>
+        <en><![CDATA[
+Precision Nutrition 0.5.0.4 alpha integrates directly with Realistic Livestock RM.
+
+Ration energy and protein density modify RLRM's own food factor. The server is authoritative, the interface is read-only, and configuration is loaded only from feeds.xml, targets.xml, and stages.xml in modSettings/FS25_PrecisionNutrition.
+
+0.5.0.4-alpha:
+- Replaced the drawn overlay with a native FS25 screen and scrollable animal table.
+- Added native previous/next husbandry controls and Esc/Exit handling.
+- Added grouped, aligned columns for animal details, growth, and nutrition.
+
+0.5.0.3-alpha:
+- Rebuilt the overlay as a compact FS25-style data table with a summary band, aligned columns, alternating rows, status colours, and paged navigation.
+
+0.5.0.2-alpha:
+- Restored read-only individual animal development rows with age, life stage, weight progress, health, ration quality, and effective food response.
+- Added paged individual development details to multiplayer synchronization.
+
+0.5.0.1-alpha:
+- The overlay now populates immediately from live husbandry data instead of waiting for RLRM's next hourly health update.
+
+0.5.0.0-alpha:
+- Rebuilt around Realistic Livestock RM 1.2.6.0.
+- Added per-animal life-stage nutrition targets.
+- Added server-authoritative multiplayer summaries.
+- Replaced simulation-changing overlay code with a read-only display.
+- Removed legacy livestock compatibility and experimental sales, grazing, and duplicate growth systems.
+        ]]></en>
+        <de><![CDATA[
+Precision Nutrition 0.5.0.4 Alpha ist direkt in Realistic Livestock RM integriert.
+
+Die Energie- und Proteindichte der Ration beeinflusst den bestehenden Futterfaktor von RLRM. Der Server ist autoritativ, die Benutzeroberfläche ist schreibgeschützt und die Konfiguration wird ausschließlich aus feeds.xml, targets.xml und stages.xml im Ordner modSettings/FS25_PrecisionNutrition geladen.
+
+0.5.0.4-alpha:
+- Die gezeichnete Anzeige wurde durch einen nativen FS25-Bildschirm mit scrollbarer Tierliste ersetzt.
+- Native Steuerelemente für die vorherige/nächste Tierhaltung sowie Esc/Beenden wurden hinzugefügt.
+- Gruppierte und ausgerichtete Spalten für Tierdaten, Wachstum und Ernährung wurden hinzugefügt.
+
+0.5.0.3-alpha:
+- Die Anzeige als kompakte Datentabelle im FS25-Stil mit Zusammenfassungsleiste, ausgerichteten Spalten, wechselnden Zeilenfarben, Statusfarben und Seitennavigation neu gestaltet.
+
+0.5.0.2-alpha:
+- Schreibgeschützte Entwicklungszeilen für einzelne Tiere mit Alter, Lebensphase, Gewichtsentwicklung, Gesundheit, Rationsqualität und effektivem Futterfaktor wiederhergestellt.
+- Seitenweise Tierentwicklungsdetails zur Mehrspieler-Synchronisierung hinzugefügt.
+
+0.5.0.1-alpha:
+- Die Anzeige wird nun sofort mit den aktuellen Tierhaltungsdaten gefüllt, ohne auf die nächste stündliche Gesundheitsaktualisierung von RLRM zu warten.
+
+0.5.0.0-alpha:
+- Für Realistic Livestock RM 1.2.6.0 neu entwickelt.
+- Ernährungsziele für die individuellen Lebensphasen der Tiere hinzugefügt.
+- Serverautorisierte Mehrspieler-Zusammenfassungen hinzugefügt.
+- Simulationsverändernden Anzeigecode durch eine schreibgeschützte Anzeige ersetzt.
+- Veraltete Tiermod-Kompatibilität sowie experimentelle Verkaufs-, Weide- und doppelte Wachstumssysteme entfernt.
+        ]]></de>
+        <fr><![CDATA[
+Precision Nutrition 0.5.0.4 alpha s'intègre directement à Realistic Livestock RM.
+
+La densité énergétique et protéique de la ration modifie le facteur d'alimentation existant de RLRM. Le serveur fait autorité, l'interface est en lecture seule et la configuration est chargée uniquement depuis feeds.xml, targets.xml et stages.xml dans modSettings/FS25_PrecisionNutrition.
+
+0.5.0.4-alpha :
+- Remplacement de l'affichage dessiné par un écran FS25 natif avec une liste d'animaux déroulante.
+- Ajout des commandes natives pour l'élevage précédent/suivant et de la fermeture avec Échap/Quitter.
+- Ajout de colonnes groupées et alignées pour les données de l'animal, la croissance et la nutrition.
+
+0.5.0.3-alpha :
+- Refonte de l'affichage sous forme de tableau compact dans le style de FS25, avec bandeau récapitulatif, colonnes alignées, lignes alternées, couleurs d'état et navigation par pages.
+
+0.5.0.2-alpha :
+- Restauration des lignes de développement individuelles en lecture seule avec l'âge, le stade de vie, la progression du poids, la santé, la qualité de la ration et le facteur d'alimentation effectif.
+- Ajout des détails individuels paginés à la synchronisation multijoueur.
+
+0.5.0.1-alpha :
+- L'affichage se remplit désormais immédiatement à partir des données actuelles de l'élevage, sans attendre la prochaine mise à jour horaire de la santé par RLRM.
+
+0.5.0.0-alpha :
+- Reconstruction pour Realistic Livestock RM 1.2.6.0.
+- Ajout d'objectifs nutritionnels selon le stade de vie de chaque animal.
+- Ajout de résumés multijoueurs gérés par le serveur.
+- Remplacement du code d'affichage modifiant la simulation par un affichage en lecture seule.
+- Suppression des anciennes compatibilités et des systèmes expérimentaux de vente, de pâturage et de croissance en double.
+        ]]></fr>
+    </description>
+
+    <iconFilename>PrecisionNutrition.dds</iconFilename>
+    <multiplayer supported="true"/>
+
+    <dependencies>
+        <dependency>FS25_RealisticLivestockRM</dependency>
+    </dependencies>
+
+    <l10n filenamePrefix="l10n/l10n"/>
+
+    <extraSourceFiles>
+        <sourceFile filename="scripts/PN_Load.lua"/>
+    </extraSourceFiles>
+
+    <actions>
+        <action name="PN_TOGGLE_OVERLAY" category="ONFOOT"/>
+    </actions>
+
+    <inputBinding>
+        <actionBinding action="PN_TOGGLE_OVERLAY">
+            <binding device="KB_MOUSE_DEFAULT" input="KEY_lalt KEY_n" index="1"/>
+        </actionBinding>
+    </inputBinding>
 </modDesc>

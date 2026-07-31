@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<l10n>
+    <texts>
+        <text name="input_PN_TOGGLE_OVERLAY" text="Open Precision Nutrition screen"/>
+        <text name="pn_ui_title" text="PRECISION NUTRITION"/>
+        <text name="pn_ui_waiting" text="Waiting for the server's next RLRM nutrition update..."/>
+        <text name="pn_ui_pending" text="pending"/>
+        <text name="pn_ui_unknown" text="Warning: %.1f kg of unknown feed"/>
+        <text name="pn_ui_no_individuals" text="No individual animal details received"/>
+        <text name="pn_ui_gender_female_short" text="F"/>
+        <text name="pn_ui_gender_male_short" text="M"/>
+        <text name="pn_ui_status_pregnant" text="pregnant"/>
+        <text name="pn_ui_status_lactating" text="lactating"/>
+        <text name="pn_ui_status_castrated" text="castrated"/>
+        <text name="pn_ui_table_barn" text="%s  |  %s  |  husbandry %d/%d"/>
+        <text name="pn_ui_summary_head" text="HEAD"/>
+        <text name="pn_ui_summary_ration" text="RATION"/>
+        <text name="pn_ui_summary_energy" text="ENERGY"/>
+        <text name="pn_ui_summary_protein" text="PROTEIN"/>
+        <text name="pn_ui_summary_rlrm" text="RLRM FOOD"/>
+        <text name="pn_ui_summary_effective" text="EFFECTIVE"/>
+        <text name="pn_ui_summary_dm" text="DRY MATTER"/>
+        <text name="pn_ui_table_stages" text="HERD STAGES  %s"/>
+        <text name="pn_ui_col_animal" text="ANIMAL"/>
+        <text name="pn_ui_col_age" text="AGE (MO)"/>
+        <text name="pn_ui_col_stage" text="STAGE / STATUS"/>
+        <text name="pn_ui_col_weight" text="WEIGHT / TARGET"/>
+        <text name="pn_ui_col_development" text="DEVELOPMENT"/>
+        <text name="pn_ui_col_health" text="HEALTH"/>
+        <text name="pn_ui_col_quality" text="QUALITY"/>
+        <text name="pn_ui_col_effective" text="EFFECTIVE"/>
+        <text name="pn_ui_group_animal" text="ANIMAL DETAILS"/>
+        <text name="pn_ui_group_growth" text="GROWTH"/>
+        <text name="pn_ui_group_nutrition" text="NUTRITION"/>
+        <text name="pn_ui_previous_husbandry" text="PREVIOUS HUSBANDRY"/>
+        <text name="pn_ui_next_husbandry" text="NEXT HUSBANDRY"/>
+        <text name="pn_ui_exit" text="EXIT"/>
+        <text name="pn_console_status" text="Show Precision Nutrition status and current metrics"/>
+        <text name="pn_console_reload" text="Reload Precision Nutrition external settings"/>
+    </texts>
+</l10n>

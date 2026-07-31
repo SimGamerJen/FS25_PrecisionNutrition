@@ -1,364 +1,74 @@
-# Precision Nutrition (FS25) — Player Guide (Alpha)
+# Precision Nutrition 0.5.0.4-alpha
 
-> **Version:** 0.4.0-alpha
-> **Works with:** Any map that has vanilla-style animal husbandries
-> **TL;DR:** Better feed → better growth. You can *see* it live (Nut %, ADG, ADG×). Powerful console tools included.
-> **REQUIRES REALISTIC LIVESTOCK**
+Precision Nutrition makes ration quality matter to individually tracked animals in Farming Simulator 25. This alpha is a focused integration for **FS25_RealisticLivestockRM 1.2.6.0** and later compatible releases.
 
----
+## What this build does
 
-## What This Mod Does
+- Calculates energy and protein density from the feed currently stored in each husbandry.
+- Selects a target for each RLRM animal from its real age, gender, lactation, pregnancy, and castration state.
+- Multiplies RLRM's existing food factor by the resulting ration-quality factor.
+- Leaves RLRM responsible for health, weight, reproduction, production, and animal synchronization.
+- Shows a read-only native FS25 screen with ration quality, nutrient ratios, the original/effective RLRM food factors, dry matter, and herd stages.
+- Populates the interface immediately from the live husbandry; it does not wait for the next RLRM hourly health update.
+- Restores read-only individual development rows showing each animal's age, life stage, current/target weight, development percentage, health, ration quality, and effective food response.
+- Presents those details in a native `ScreenElement` with a summary band, grouped columns, alternating rows, threshold colours, and a scrollable `SmoothList`.
+- Synchronizes summary metrics from the server to multiplayer clients.
 
-* **Nutrition (Nut %)** is calculated from what animals actually eat.
-* **Growth (ADG, kg/day)** scales with nutrition using a curve:
+Precision Nutrition does not contain a second growth clock and does not directly edit animal weight, health, reproduction, sales, trough levels, or grazing state.
 
-  * Nut ≈ **1.00** → **~+20%** faster than base (before maturity taper)
-  * Nut ≈ **0.84** → **~+7%**
-  * Nut ≈ **0.71** → **~3–4% slower** than base
-* **Maturity taper:** heavier animals gain more slowly as they approach mature weight.
-* **Condition (long-term):** sustained good feeding nudges a small bonus; poor feeding nudges a small malus.
+## Requirements and compatibility
 
-<img width="1646" height="471" alt="image" src="https://github.com/user-attachments/assets/b38b870e-37b6-4f1d-8410-080045366471" />
-<img width="1677" height="464" alt="image" src="https://github.com/user-attachments/assets/3ef57714-908f-43d1-9e4d-c6785d48452e" />
+- Farming Simulator 25
+- FS25_RealisticLivestockRM 1.2.6.0 or a compatible newer version
 
-**I've deliberately acquired a variety of cattle specifically to demonstrate a variety of stages use during animal growth and development**
+The dependency is intentional: PN disables itself if RLRM is unavailable. Legacy Realistic Livestock and Enhanced Livestock are not supported. Integrations with other SimGamerJen mods are future work and are not enabled in this alpha.
 
----
+## Installation
 
-## Quick Start (10 Minutes)
+1. Place `FS25_PrecisionNutrition.zip` in the Farming Simulator 25 `mods` folder.
+2. Enable both Precision Nutrition and Realistic Livestock RM for the save.
+3. Fully restart the game after replacing an earlier PN alpha so the native GUI XML is reloaded.
 
-1. **Pick a barn** with animals.
-2. **Feed FORAGE/TMR only** and let time run 5–10 in-game minutes.
+## Controls
 
-   * Watch **Nut → ~100%**, **ADG rise**, **ADG× ≈ 1.20**.
-3. **Switch to silage only** (similar availability).
+- `Alt+N`: open the Precision Nutrition screen
+- **Previous Husbandry** / **Next Husbandry**: use the native button-bar keys or controller buttons shown by FS25
+- Mouse wheel, scrollbar, keyboard, or controller: scroll and navigate the animal table
+- `Esc` or **Exit**: close the screen and return control to gameplay
 
-   * Nut → ~**84%**, ADG dips (ADG× ~1.07).
-4. **Switch to dry grass only.**
+## External configuration
 
-   * Nut → ~**71%**, ADG dips further (ADG× ~0.96–0.97).
+Optional overrides are read from:
 
-[**screenshot: console** with three successive `pnShowEffects` runs after each feed change.]
+`modSettings/FS25_PrecisionNutrition/`
 
----
+Only these files are loaded:
 
-## Core Concepts
+- `feeds.xml`: feed nutrient values and aliases
+- `targets.xml`: daily energy, protein, and dry-matter targets by species/stage
+- `stages.xml`: optional age/gender stage bands
 
-### Nut (Nutrition Ratio)
+Settings are authoritative on the server. Unknown feeds contribute dry matter but no energy or protein and are reported in the log and interface. `SOYBEANSTRAW` is intentionally not included in the built-in feed matrix.
 
-* 0.00–1.00 (shown as %).
-* Based on **energy**, **protein**, and **dry matter intake** vs targets for the barn’s current herd makeup.
-* Your mix in the trough **matters** (silage vs hay vs forage/TMR).
+Use `pnReload` after editing configuration and `pnStatus` to print the current integration and husbandry summaries to the log.
 
-### ADG (Average Daily Gain, kg/day)
+## Multiplayer model
 
-* The growth rate your animals are currently trending toward.
-* Calculated per frame; **displayed as per-day** for clarity.
-* **ADG×** (multiplier) shows how nutrition scales base stage growth before maturity taper.
+The RLRM health-update hook runs only where `g_server` exists. Clients receive read-only summaries approximately every five seconds. A client never changes animal or husbandry state through PN.
 
-### Condition (slow drift)
+## Alpha testing focus
 
-* Moves very slowly upward with **sustained Nut > ~0.9** and downward with **Nut < ~0.6**.
-* Small effect by design in alpha (long-term reward, not a hammer).
+- Start a clean save and an existing RLRM save in single player.
+- Compare TMR, hay, silage, and deliberately poor or unknown rations over several in-game hours.
+- Verify lactating/dry females and intact/castrated males appear under the correct stages.
+- Check `Alt+N`, husbandry cycling, `pnStatus`, and `pnReload`.
+- Test a host/client session and a dedicated server, including a late-joining client.
+- Save, reload, and review `log.txt` for `[Precision Nutrition]` errors or repeated hook messages.
 
-[**screenshot: console** `pnShowEffects` after a full in-game day at 100% Nut, showing Cond a little above 1.00.]
+The native screen, mouse focus, scrolling, husbandry navigation, Esc/Exit handling, and final column layout have been confirmed in game. Nutrition behaviour and multiplayer remain alpha testing areas.
 
----
+## Copyright and permissions
 
-## Installation & Compatibility
-
-* **REQUIRES REALISTIC LIVESTOCK**
-* Drop the mod zip into your FS25 mods folder as usual.
-* The modSettings folder can be downloaded to allow for customisation of stages, feedMatrix, aliases and more.
-* Compatible with most animal mods/maps; we read standard trough levels/consumption.
-* **No save conversion**; can be added/removed safely (you’ll just lose the PN effects when removed).
-
----
-
-## Using the Console Tools
-
-> Open the developer console (standard FS keybind). All commands are **ASCII only** (no special symbols).
-
-### 1) Find Your Barn Index (optional)
-
-Some commands need an entry index.
-
-```text
-pnDumpHusbandries
-```
-
-* Prints a numbered list of husbandries PN knows about.
-* Use that index with other commands like `pnBeat`, `pnInspectTrough`, etc.
-
-<img width="1223" height="854" alt="image" src="https://github.com/user-attachments/assets/696fd6e1-652b-4508-b764-f937bd55fcf2" />
-
----
-
-### 2) Effects Summary (what most players need)
-
-#### Barn summary
-
-```text
-pnShowEffects
-```
-
-Shows one line per non-empty barn:
-
-```
-- Timber Sage Cow Barn [STEER_FINISH] | head=9 | Nut~71% | ADG x0.97 | Cond=1.00 | ADG=0.528 kg/d
-```
-
-#### Per-stage breakdown (mirror of pnBeat, aggregated)
-
-```text
-pnShowEffects stages
-```
-
-Adds a stage list under each barn:
-
-```
-  - [YEARLING] | head=8 | avgW=420.1kg | Nut~71% | ADG x0.97 | ADG=0.071 kg/d
-  - [CALF]     | head=1 | avgW=80.6kg  | Nut~71% | ADG x0.97 | ADG=0.069 kg/d
-```
-
-**Tips**
-
-* Run again after changing feed to see the difference within minutes.
-* If nothing prints, let time run a bit (PN updates during the heartbeat).
-
-<img width="1716" height="677" alt="image" src="https://github.com/user-attachments/assets/24e5219c-1417-4008-8f97-d9f04159e097" />
-
----
-
-### 3) One-Shot Update (A/B testing)
-
-```text
-pnBeat <index>
-```
-
-Forces a single PN tick on the given barn and prints per-stage lines (handy after a feed swap).
-
-Examples:
-
-```
-pnBeat 10
-pnBeat 16
-```
-
-<img width="1770" height="368" alt="image" src="https://github.com/user-attachments/assets/c031dbeb-8e11-47f8-82d5-57f96e5586e0" />
-
----
-
-### 4) Inspect Your Trough
-
-```text
-pnInspectTrough <index>
-```
-
-* Shows **fillUnits**, current **fillType**, supported **feed types**, and **levels**.
-* Useful to verify what the map/placeable actually accepts and what’s in there right now.
-
-[**screenshot: console** with `pnInspectTrough 10` showing supported feed types and levels.]
-
----
-
-### 5) Stage & Cluster Diagnostics (advanced)
-
-#### Stage breakdown table (with ages/weights)
-
-```text
-pnStages <index>
-```
-
-* Prints headcount and average weight per stage, min/avg/max age, and—if configured—price guidance for over-age animals.
-
-<img width="1819" height="465" alt="image" src="https://github.com/user-attachments/assets/4c646b71-1bf5-4f15-acf4-6357e1930c91" />
-
-#### “Why is this a steer/bull/etc.?” (debug)
-
-```text
-pnStagesWhy <index>
-```
-
-* Prints per-cluster info (gender, age, castration hints, resolved stage) for the barn.
-
-<img width="1869" height="764" alt="image" src="https://github.com/user-attachments/assets/c075c942-15b6-4c89-9c8e-5cda0fee7eb1" />
-
----
-
-### 6) Feeding Controls (testing only; optional)
-
-* **Clear/reduce** trough:
-
-  ```text
-  pnClearFeed <index> [percent]
-  ```
-
-  Example: `pnClearFeed 10 50` (halve levels)
-
-* **Credit intake** to the barn (simulate eating a feed instantly):
-
-  ```text
-  pnCredit <index> FILLTYPE_NAME kg
-  ```
-
-  Example: `pnCredit 10 SILAGE 200`
-
-* **Set Nut override** (pins nutrition, for experiments):
-
-  ```text
-  pnNut <index> <0..1>     # e.g., pnNut 10 1.0
-  pnNut <index> off        # return to automatic
-  ```
-
-* **Auto consumption** (let PN consume trough levels in “estimate” path):
-
-  ```text
-  pnAutoConsume on|off
-  ```
-
-* **Intake debug** (spammy):
-
-  ```text
-  pnIntakeDebug on|off
-  ```
-
-[**screenshot: console** after `pnCredit` showing effects change.]
-
----
-
-### 7) Overlay & Settings
-
-* Toggle overlay:
-
-  ```text
-  pnOverlay
-  pnOverlayMine on|off|all
-  pnOverlayNext
-  pnOverlayPrev
-  ```
-
-* Reload PN packs/settings:
-
-  ```text
-  pnPNReload
-  ```
-
-* Heartbeat period (ms) or disable (“off”):
-
-  ```text
-  pnHeartbeat 1000
-  pnHeartbeat off
-  ```
-
-* Logger level:
-
-  ```text
-  pnSetLogLevel INFO    # TRACE|DEBUG|INFO|WARN|ERROR
-  ```
-
-* Diagnostics & self-heal:
-
-  ```text
-  pnDiag
-  pnFixEvents
-  ```
-
----
-
-## Play Patterns That Feel Good
-
-* **Finishers:** Grow on cheaper roughage, then switch to FORAGE/TMR to finish faster.
-* **Dairy:** Keep **lactating** groups near 100% Nut for steadier condition (and future milk tuning).
-* **Pasture risk:** If you rely on grass-only, expect Nut in the 0.7–0.8 band; growth is slower but costs are minimal.
-
-[**screenshot: two barns** side-by-side—one on forage (Nut~100%), one on hay (Nut~71%).]
-
----
-
-## Known Limitations (Alpha)
-
-* **FORAGE** is still an aggregated bucket; we don’t yet infer exact TMR recipes.
-* **Milk multiplier** is exposed internally; some maps may not yet hook it to milk output UI.
-* Balance is conservative: condition drift is subtle; ADG cap is modest.
-
----
-
-## Troubleshooting
-
-* **Font warnings (“character not found”)**
-  We output only ASCII (e.g., `Nut~84%`, `- bullets`) to avoid those glyphs.
-
-* **No barns in `pnShowEffects`**
-  Let time run briefly or run `pnBeat <index>`; ensure the barn has animals and recent PN tick.
-
-* **Nut always 100%?**
-  Check your trough contents with `pnInspectTrough`. If it’s **FORAGE** only, 100% is intended. Try silage/hay to see lower Nut.
-
-* **Crash: attempt to index nil ‘tuning’ or missing console command:**
-  Ensure your mod’s load order includes **PN_Settings.lua** and **PN_Debug.lua** with:
-
-  ```lua
-  PN = PN or {}   -- very top of each file
-  ```
-
-  (Already included in the shipped alpha.)
-
----
-
-## Appendix — Command Quick Reference
-
-| Command                    | Purpose                                  | Example                        |
-| -------------------------- | ---------------------------------------- | ------------------------------ |
-| `pnShowEffects`            | One-line per barn (Nut, ADG×, Cond, ADG) | `pnShowEffects`                |
-| `pnShowEffects stages`     | Add per-stage breakdown under each barn  | `pnShowEffects stages`         |
-| `pnDumpHusbandries`        | List PN-tracked barns with indices       | `pnDumpHusbandries`            |
-| `pnBeat <idx>`             | Force a PN update & print per-stage      | `pnBeat 10`                    |
-| `pnInspectTrough <idx>`    | Show feed units, levels, supported types | `pnInspectTrough 10`           |
-| `pnStages <idx>`           | Stage table with age/weight              | `pnStages 10`                  |
-| `pnStagesWhy <idx>`        | Explain stage per cluster                | `pnStagesWhy 10`               |
-| `pnClearFeed <idx> [pct]`  | Reduce or clear trough levels            | `pnClearFeed 10 50`            |
-| `pnCredit <idx> FT kg`     | Credit intake (simulate eating)          | `pnCredit 10 SILAGE 200`       |
-| `pnNut <idx> <0..1 off>`   | Override/clear nutrition                 | `pnNut 10 1.0`                 |
-| `pnAutoConsume on / off`   | Toggle auto trough consumption           | `pnAutoConsume on`             |
-| `pnIntakeDebug on /off`    | Toggle intake logging                    | `pnIntakeDebug off`            |
-| `pnOverlay` / `pnOverlay*` | Toggle overlay / navigate                | `pnOverlay`                    |
-| `pnPNReload`               | Reload PN configs                        | `pnPNReload`                   |
-| `pnHeartbeat <ms off>`     | Change PN tick rate                      | `pnHeartbeat 1000`             |
-| `pnSetLogLevel <L>`        | Logger level                             | `pnSetLogLevel DEBUG`          |
-| `pnDiag`                   | Module readiness                         | `pnDiag`                       |
-| `pnFixEvents`              | Restore events methods                   | `pnFixEvents`                  |
-| `pnFindFeeder <idx> [m]`   | Nearby feeder placeables                 | `pnFindFeeder 10 35`           |
-| `pnInspectHusbandry <idx>` | Inspect entry internals                  | `pnInspectHusbandry 10`        |
-| `pnInspectClusters <idx>`  | Dump cluster objects                     | `pnInspectClusters 10`         |
-| `pnInspectFoodSpec <idx>`  | Dump husbandryFood levels                | `pnInspectFoodSpec 10`         |
-
----
-
-## Changelog Highlights (Player-Facing)
-
-* New **ADG multiplier** curve tied to Nut (feels rewarding but fair).
-* Subtle **Condition** drift for long-term husbandry.
-* **Effects summary** & **per-stage breakdown** commands.
-* Cleaner console output (ASCII only).
-* Safer load order & debug guards.
-
----
-
-### Contributing / Feedback
-
-If you hit a barn that “doesn’t move” or Nut looks wrong:
-
-1. Run `pnInspectTrough <idx>` and `pnBeat <idx>`,
-2. Paste both outputs in an issue with your map/mod list,
-3. Tell us what feed was in the trough.
-
-We’ll tune it fast. Enjoy! 🐄🌾
-
----
-
-## Licence and Permissions
-
-Copyright © 2026 SimGamerJen. All rights reserved.
+Copyright © SimGamerJen. All rights reserved.
 
 You may download and use this mod for personal use. You may not modify, redistribute, re-upload, or publish this mod, in whole or in part, or any derivative version without prior written permission from SimGamerJen.
