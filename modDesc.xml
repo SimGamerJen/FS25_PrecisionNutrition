@@ -19,6 +19,7 @@ Ration energy and protein density modify RLRM's own food factor. The server is a
 - Replaced the drawn overlay with a native FS25 screen and scrollable animal table.
 - Added native previous/next husbandry controls and Esc/Exit handling.
 - Added grouped, aligned columns for animal details, growth, and nutrition.
+- Corrected the RLRM 1.4 integration callback so animal and game update cycles continue normally.
 
 0.5.0.3-alpha:
 - Rebuilt the overlay as a compact FS25-style data table with a summary band, aligned columns, alternating rows, status colours, and paged navigation.
@@ -46,6 +47,7 @@ Die Energie- und Proteindichte der Ration beeinflusst den bestehenden Futterfakt
 - Die gezeichnete Anzeige wurde durch einen nativen FS25-Bildschirm mit scrollbarer Tierliste ersetzt.
 - Native Steuerelemente für die vorherige/nächste Tierhaltung sowie Esc/Beenden wurden hinzugefügt.
 - Gruppierte und ausgerichtete Spalten für Tierdaten, Wachstum und Ernährung wurden hinzugefügt.
+- Der Integrations-Callback für RLRM 1.4 wurde korrigiert, damit Tier- und Spielaktualisierungen normal weiterlaufen.
 
 0.5.0.3-alpha:
 - Die Anzeige als kompakte Datentabelle im FS25-Stil mit Zusammenfassungsleiste, ausgerichteten Spalten, wechselnden Zeilenfarben, Statusfarben und Seitennavigation neu gestaltet.
@@ -73,6 +75,7 @@ La densité énergétique et protéique de la ration modifie le facteur d'alimen
 - Remplacement de l'affichage dessiné par un écran FS25 natif avec une liste d'animaux déroulante.
 - Ajout des commandes natives pour l'élevage précédent/suivant et de la fermeture avec Échap/Quitter.
 - Ajout de colonnes groupées et alignées pour les données de l'animal, la croissance et la nutrition.
+- Correction du callback d'intégration de RLRM 1.4 afin que les cycles de mise à jour des animaux et du jeu se poursuivent normalement.
 
 0.5.0.3-alpha :
 - Refonte de l'affichage sous forme de tableau compact dans le style de FS25, avec bandeau récapitulatif, colonnes alignées, lignes alternées, couleurs d'état et navigation par pages.
