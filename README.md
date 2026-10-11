@@ -1,6 +1,6 @@
 # Precision Nutrition 0.5.0.4-alpha
 
-Precision Nutrition makes ration quality matter to individually tracked animals in Farming Simulator 25. This alpha is a focused integration for **FS25_RealisticLivestockRM 1.2.6.0** and later compatible releases.
+Precision Nutrition makes ration quality matter to individually tracked animals in Farming Simulator 25. This alpha is a focused integration for **FS25_RealisticLivestockRM 1.4.0.0**.
 
 ## What this build does
 
@@ -19,7 +19,7 @@ Precision Nutrition does not contain a second growth clock and does not directly
 ## Requirements and compatibility
 
 - Farming Simulator 25
-- FS25_RealisticLivestockRM 1.2.6.0 or a compatible newer version
+- FS25_RealisticLivestockRM 1.4.0.0
 
 The dependency is intentional: PN disables itself if RLRM is unavailable. Legacy Realistic Livestock and Enhanced Livestock are not supported. Integrations with other SimGamerJen mods are future work and are not enabled in this alpha.
 
@@ -65,7 +65,7 @@ The RLRM health-update hook runs only where `g_server` exists. Clients receive r
 - Test a host/client session and a dedicated server, including a late-joining client.
 - Save, reload, and review `log.txt` for `[Precision Nutrition]` errors or repeated hook messages.
 
-The native screen, mouse focus, scrolling, husbandry navigation, Esc/Exit handling, and final column layout have been confirmed in game. Nutrition behaviour and multiplayer remain alpha testing areas.
+The native screen, mouse focus, scrolling, husbandry navigation, Esc/Exit handling, final column layout, RLRM 1.4 callback integration, and uninterrupted monthly crop growth have been confirmed in game. Nutrition behaviour and multiplayer remain alpha testing areas.
 
 ## Copyright and permissions
 
