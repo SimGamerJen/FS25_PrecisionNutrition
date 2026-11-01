@@ -8,6 +8,7 @@ source(Utils.getFilename("scripts/PN_Core.lua", PN_MOD_DIRECTORY))
 source(Utils.getFilename("scripts/PN_Events.lua", PN_MOD_DIRECTORY))
 source(Utils.getFilename("scripts/PN_Compat_RL.lua", PN_MOD_DIRECTORY))
 source(Utils.getFilename("scripts/PN_UI.lua", PN_MOD_DIRECTORY))
+source(Utils.getFilename("scripts/PN_MixerTracker.lua", PN_MOD_DIRECTORY))
 source(Utils.getFilename("scripts/PN_Debug.lua", PN_MOD_DIRECTORY))
 
 PN_Boot = {
@@ -19,9 +20,11 @@ PN_Boot = {
 function PN_Boot:loadMap()
     PN_Husbandry.reset()
     PN_Core.reset()
+    PN_MixerTracker.reset()
     PN_Settings.load(false)
     PN_Husbandry.scan()
     self.enabled = PN_Compat_RL.install()
+    if self.enabled then PN_MixerTracker.install() end
     if self.enabled and g_server ~= nil then PN_Core.refreshAllMetrics(true) end
     self.scanTimer = 0
     self.broadcastTimer = 0
@@ -32,7 +35,10 @@ end
 function PN_Boot:onMissionStarted()
     if not self.enabled then return end
     PN_Husbandry.scan()
-    if g_server ~= nil then PN_Core.refreshAllMetrics(true) end
+    if g_server ~= nil then
+        PN_Core.refreshAllMetrics(true)
+        PN_MixerTracker.scan()
+    end
 end
 
 function PN_Boot:update(dt)
@@ -41,7 +47,10 @@ function PN_Boot:update(dt)
     if self.scanTimer >= 10000 then
         self.scanTimer = self.scanTimer - 10000
         PN_Husbandry.scan()
-        if g_server ~= nil then PN_Core.refreshAllMetrics(false) end
+        if g_server ~= nil then
+            PN_Core.refreshAllMetrics(false)
+            PN_MixerTracker.scan()
+        end
     end
     if g_server ~= nil then
         self.broadcastTimer = self.broadcastTimer + (tonumber(dt) or 0)
@@ -59,6 +68,7 @@ end
 function PN_Boot:deleteMap()
     self.enabled = false
     PN_Compat_RL.disable()
+    PN_MixerTracker.reset()
     PN_Debug.unregister()
     PN_Husbandry.reset()
     PN_Core.reset()
