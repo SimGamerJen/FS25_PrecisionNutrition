@@ -52,6 +52,39 @@ Settings are authoritative on the server. Unknown feeds contribute dry matter bu
 
 Use `pnReload` after editing configuration and `pnStatus` to print the current integration and husbandry summaries to the log.
 
+## Experimental mixer ingredient diagnostics (draft feature branch)
+
+**Optional:** enable FS25_CustomAnimalFoodRecipes 1.0.0.0 alongside PN and RLRM. No map XML edits are required for custom recipes. PN does **not** install recipes, alter mixer fill levels, alter husbandry feeds, or use this ledger in its nutrition calculations yet.
+
+On the authoritative server, PN observes each mixer wagon's actual accepted fill-unit volume changes and associates positive additions with the incoming fill type when that type is a recognised mixer recipe ingredient. On discharge/removal it reduces known constituents proportionally. The ledger is persisted separately in the wagon's vehicles.xml save data under mixerWagon.precisionNutrition. It is independent of the other mod's recipe snapshot.
+
+Console commands:
+
+- pnMixerDump — print every loaded mixer, recipe output, measured total, ingredient volumes and source quality.
+- pnMixerTrace — toggle verbose event-by-event logs of accepted additions and removals (off by default; can be noisy while filling).
+- pnStatus and pnReload — unchanged.
+
+Ledger source labels:
+
+- observed: recorded from real accepted input events, including across a save/load.
+- reconstructed: recovered from wagon recipe rows when each filled row maps to exactly one fill type; this is **not** direct evidence of the original ingredients.
+- incomplete: ambiguous recipe rows or volume changes outside the observed fill method; the unknown amount is shown as __UNTRACKED__.
+
+The source label remains conservative: adding observed material to a reconstructed or incomplete batch does not retroactively establish all original ingredients. No attempt is made to infer a precise ingredient from the recipe's target ratios.
+
+**Required in-game verification before nutrient integration:**
+
+1. On a *copy* of a save, install the optional recipe mod, apply a recipe to an empty wagon, run pnMixerDump and confirm the wagon starts empty.
+2. Run pnMixerTrace; add distinct materials (including a small amount, bales if supported and a custom recipe ingredient). Confirm recorded increases reflect **accepted** volume, not intended volume.
+3. Mix and drive: verify the ledger is unchanged while the recipe is internally converted to FORAGE or a custom output type.
+4. Unload half the wagon, run pnMixerDump, confirm all constituents fall proportionally and the sum matches the actual fill level. Repeat until empty, then add a new mixture.
+5. Save and reload with a **partially filled** wagon. Verify the exact ingredient ledger, quality label and total survive. Check the saved vehicles.xml under the wagon's mixerWagon.precisionNutrition.
+6. Load an existing wagon containing ingredients **before** the tracker was installed. Verify ambiguous rows show incomplete rather than fabricated precision.
+7. Test switching recipes with an empty wagon, a full wagon, and a forced recipe change; any unobserved ingredients must remain marked as such.
+8. Repeat with a multiplayer host/dedicated server; diagnostics are server-only. Confirm no game log errors, no impact on normal wagon filling/discharging, and no RLRM growth regression.
+
+**Known limitations:** when a different mod directly changes a wagon fill level without calling the observed instance method, PN can reconcile the total but cannot know the missing ingredient; it marks that volume untracked. Multiple ingredients sharing one mixer recipe row may not be recoverable after the fact unless their inputs were observed. This branch does not yet track which husbandry receives discharged feed, nor expose ingredient nutrition in Alt+N.
+
 ## Multiplayer model
 
 The RLRM health-update hook runs only where `g_server` exists. Clients receive read-only summaries approximately every five seconds. A client never changes animal or husbandry state through PN.
