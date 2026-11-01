@@ -8,6 +8,7 @@ PN_MixerTracker = PN_MixerTracker or {
 local MOD_NAME = "FS25_CustomAnimalFoodRecipes"
 local UNKNOWN = "__UNTRACKED__"
 local EPSILON = 0.1
+local EVENT_EPSILON = 0.00001
 
 local function fillName(index)
     if index == nil then return UNKNOWN end
@@ -51,7 +52,7 @@ local function scaleIngredients(state, target)
 end
 
 local function addIngredient(state, name, litres)
-    if litres <= EPSILON then return end
+    if litres <= EVENT_EPSILON then return end
     state.ingredients[name] = (state.ingredients[name] or 0) + litres
     if name == UNKNOWN then state.quality = "incomplete" end
 end
@@ -148,7 +149,7 @@ function PN_MixerTracker.recordChange(vehicle, fillTypeIndex, before, after)
     if state == nil then return end
     reconcile(vehicle, state, before)
     local delta = after - before
-    if math.abs(delta) <= EPSILON then return end
+    if math.abs(delta) <= EVENT_EPSILON then return end
 
     if delta > 0 then
         local spec = vehicle.spec_mixerWagon
