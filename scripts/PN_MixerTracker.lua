@@ -211,14 +211,18 @@ function PN_MixerTracker.toggleTrace()
 end
 
 function PN_MixerTracker.install()
-    if PN_MixerTracker.installed then return PN_MixerTracker.enabled end
+    if PN_MixerTracker.installed then
+        PN_MixerTracker.enabled = g_modIsLoaded ~= nil and g_modIsLoaded[MOD_NAME] == true
+        return PN_MixerTracker.enabled
+    end
     local loaded = g_modIsLoaded ~= nil and g_modIsLoaded[MOD_NAME] == true
     if not loaded then
         PN_Log.info("[Mixer] optional %s not loaded; tracker inactive", MOD_NAME)
         return false
     end
-    if MixerWagon == nil or Vehicle == nil or Utils == nil
-            or Utils.appendedFunction == nil or Vehicle.xmlSchemaSavegame == nil
+    if MixerWagon == nil or MixerWagon.onPostLoad == nil or MixerWagon.saveToXMLFile == nil
+            or Vehicle == nil or Utils == nil or Utils.appendedFunction == nil
+            or Vehicle.xmlSchemaSavegame == nil
             or XMLValueType == nil then
         PN_Log.warning("[Mixer] game save hooks unavailable; tracker inactive")
         return false
