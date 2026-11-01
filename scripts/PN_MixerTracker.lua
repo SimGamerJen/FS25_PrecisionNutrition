@@ -10,6 +10,12 @@ local UNKNOWN = "__UNTRACKED__"
 local EPSILON = 0.1
 local EVENT_EPSILON = 0.00001
 
+local function packResults(...)
+    return {n = select("#", ...), ...}
+end
+
+local unpackResults = table.unpack or unpack
+
 local function fillName(index)
     if index == nil then return UNKNOWN end
     if g_fillTypeManager ~= nil and g_fillTypeManager.getFillTypeNameByIndex ~= nil then
@@ -130,13 +136,13 @@ function PN_MixerTracker.track(vehicle)
                 local isMixer = spec ~= nil and fillUnitIndex == spec.fillUnitIndex
                 local before = isMixer and measuredLevel(target) or 0
                 -- Always call the complete existing chain, including CustomAnimalFoodRecipes.
-                local result = previous(target, farmId, fillUnitIndex, delta, fillTypeIndex, toolType, fillPositionData)
+                local results = packResults(previous(target, farmId, fillUnitIndex, delta, fillTypeIndex, toolType, fillPositionData))
                 if isMixer and PN_MixerTracker.enabled and g_server ~= nil then
                     local after = measuredLevel(target)
                     local ok, err = pcall(PN_MixerTracker.recordChange, target, fillTypeIndex, before, after)
                     if not ok then PN_Log.warning("[Mixer] recorder failed: %s", tostring(err)) end
                 end
-                return result
+                return unpackResults(results, 1, results.n)
             end
             vehicle.pnMixerInstrumented = true
         end
