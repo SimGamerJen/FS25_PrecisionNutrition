@@ -37,5 +37,50 @@
         <text name="pn_ui_exit" text="QUITTER"/>
         <text name="pn_console_status" text="Afficher l'état et les valeurs actuelles de Nutrition de précision"/>
         <text name="pn_console_reload" text="Recharger les paramètres externes de Nutrition de précision"/>
+        <text name="pn_ui_filter_all" text="Tous les animaux"/>
+        <text name="pn_ui_filter_count" text="Affichage : %d sur %d"/>
+        <text name="pn_ui_filter_count_received" text="Affichage : %d/%d reçus"/>
+        <text name="pn_ui_stage_calf" text="Veaux"/>
+        <text name="pn_ui_stage_heifer" text="Génisses"/>
+        <text name="pn_ui_stage_cow_dry" text="Vaches taries"/>
+        <text name="pn_ui_stage_cow_gest" text="Vaches gestantes"/>
+        <text name="pn_ui_stage_cow_lact" text="Vaches en lactation"/>
+        <text name="pn_ui_stage_yearling" text="Animaux d’un an"/>
+        <text name="pn_ui_stage_steer_finish" text="Bœufs en finition"/>
+        <text name="pn_ui_stage_bull" text="Taureaux"/>
+        <text name="pn_ui_stage_lamb" text="Agneaux"/>
+        <text name="pn_ui_stage_grower" text="Animaux en croissance"/>
+        <text name="pn_ui_stage_ewe_dry" text="Brebis taries"/>
+        <text name="pn_ui_stage_ewe_gest" text="Brebis gestantes"/>
+        <text name="pn_ui_stage_ewe_lact" text="Brebis allaitantes"/>
+        <text name="pn_ui_stage_wether_finish" text="Mâles castrés en finition"/>
+        <text name="pn_ui_stage_ram" text="Jeunes béliers"/>
+        <text name="pn_ui_stage_ram_adult" text="Béliers adultes"/>
+        <text name="pn_ui_stage_kid" text="Chevreaux"/>
+        <text name="pn_ui_stage_doe_dry" text="Chèvres taries"/>
+        <text name="pn_ui_stage_doe_gest" text="Chèvres gestantes"/>
+        <text name="pn_ui_stage_doe_lact" text="Chèvres en lactation"/>
+        <text name="pn_ui_stage_buck" text="Jeunes boucs"/>
+        <text name="pn_ui_stage_buck_adult" text="Boucs adultes"/>
+        <text name="pn_ui_stage_piglet" text="Porcelets"/>
+        <text name="pn_ui_stage_gilt" text="Cochettes"/>
+        <text name="pn_ui_stage_sow_dry" text="Truies non allaitantes"/>
+        <text name="pn_ui_stage_sow_gest" text="Truies gestantes"/>
+        <text name="pn_ui_stage_sow_lact" text="Truies allaitantes"/>
+        <text name="pn_ui_stage_barrow_finish" text="Porcs castrés en finition"/>
+        <text name="pn_ui_stage_boar" text="Jeunes verrats"/>
+        <text name="pn_ui_stage_boar_adult" text="Verrats adultes"/>
+        <text name="pn_ui_stage_chick" text="Poussins"/>
+        <text name="pn_ui_stage_layer" text="Poules pondeuses"/>
+        <text name="pn_ui_stage_rooster" text="Coqs"/>
+        <text name="pn_ui_stage_foal" text="Poulains"/>
+        <text name="pn_ui_stage_weanling" text="Poulains sevrés"/>
+        <text name="pn_ui_stage_mare_dry" text="Juments non allaitantes"/>
+        <text name="pn_ui_stage_mare_gest" text="Juments gestantes"/>
+        <text name="pn_ui_stage_mare_lact" text="Juments allaitantes"/>
+        <text name="pn_ui_stage_gelding" text="Hongres"/>
+        <text name="pn_ui_stage_colt" text="Jeunes mâles"/>
+        <text name="pn_ui_stage_stallion" text="Étalons"/>
+        <text name="pn_ui_stage_default" text="Autres animaux"/>
     </texts>
 </l10n>
