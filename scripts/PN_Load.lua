@@ -29,7 +29,7 @@ function PN_Boot:loadMap()
     self.scanTimer = 0
     self.broadcastTimer = 0
     PN_Debug.register()
-    if self.enabled then PN_Log.info("0.5.0.4-alpha ready (server-authoritative RLRM integration)") end
+    if self.enabled then PN_Log.info("0.5.0.7-alpha1 ready (server-authoritative RLRM integration)") end
 end
 
 function PN_Boot:onMissionStarted()
