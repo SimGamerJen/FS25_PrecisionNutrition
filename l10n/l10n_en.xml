@@ -37,5 +37,50 @@
         <text name="pn_ui_exit" text="EXIT"/>
         <text name="pn_console_status" text="Show Precision Nutrition status and current metrics"/>
         <text name="pn_console_reload" text="Reload Precision Nutrition external settings"/>
+        <text name="pn_ui_filter_all" text="All animals"/>
+        <text name="pn_ui_filter_count" text="Showing %d of %d"/>
+        <text name="pn_ui_filter_count_received" text="Showing %d of %d received"/>
+        <text name="pn_ui_stage_calf" text="Calves"/>
+        <text name="pn_ui_stage_heifer" text="Heifers"/>
+        <text name="pn_ui_stage_cow_dry" text="Dry cows"/>
+        <text name="pn_ui_stage_cow_gest" text="Pregnant cows"/>
+        <text name="pn_ui_stage_cow_lact" text="Lactating cows"/>
+        <text name="pn_ui_stage_yearling" text="Yearlings"/>
+        <text name="pn_ui_stage_steer_finish" text="Finishing steers"/>
+        <text name="pn_ui_stage_bull" text="Bulls"/>
+        <text name="pn_ui_stage_lamb" text="Lambs"/>
+        <text name="pn_ui_stage_grower" text="Growing animals"/>
+        <text name="pn_ui_stage_ewe_dry" text="Dry ewes"/>
+        <text name="pn_ui_stage_ewe_gest" text="Pregnant ewes"/>
+        <text name="pn_ui_stage_ewe_lact" text="Lactating ewes"/>
+        <text name="pn_ui_stage_wether_finish" text="Finishing wethers"/>
+        <text name="pn_ui_stage_ram" text="Young rams"/>
+        <text name="pn_ui_stage_ram_adult" text="Adult rams"/>
+        <text name="pn_ui_stage_kid" text="Kids"/>
+        <text name="pn_ui_stage_doe_dry" text="Dry does"/>
+        <text name="pn_ui_stage_doe_gest" text="Pregnant does"/>
+        <text name="pn_ui_stage_doe_lact" text="Lactating does"/>
+        <text name="pn_ui_stage_buck" text="Young bucks"/>
+        <text name="pn_ui_stage_buck_adult" text="Adult bucks"/>
+        <text name="pn_ui_stage_piglet" text="Piglets"/>
+        <text name="pn_ui_stage_gilt" text="Gilts"/>
+        <text name="pn_ui_stage_sow_dry" text="Dry sows"/>
+        <text name="pn_ui_stage_sow_gest" text="Pregnant sows"/>
+        <text name="pn_ui_stage_sow_lact" text="Lactating sows"/>
+        <text name="pn_ui_stage_barrow_finish" text="Finishing barrows"/>
+        <text name="pn_ui_stage_boar" text="Young boars"/>
+        <text name="pn_ui_stage_boar_adult" text="Adult boars"/>
+        <text name="pn_ui_stage_chick" text="Chicks"/>
+        <text name="pn_ui_stage_layer" text="Laying hens"/>
+        <text name="pn_ui_stage_rooster" text="Roosters"/>
+        <text name="pn_ui_stage_foal" text="Foals"/>
+        <text name="pn_ui_stage_weanling" text="Weanlings"/>
+        <text name="pn_ui_stage_mare_dry" text="Dry mares"/>
+        <text name="pn_ui_stage_mare_gest" text="Pregnant mares"/>
+        <text name="pn_ui_stage_mare_lact" text="Lactating mares"/>
+        <text name="pn_ui_stage_gelding" text="Geldings"/>
+        <text name="pn_ui_stage_colt" text="Colts"/>
+        <text name="pn_ui_stage_stallion" text="Stallions"/>
+        <text name="pn_ui_stage_default" text="Other animals"/>
     </texts>
 </l10n>
