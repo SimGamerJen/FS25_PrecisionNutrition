@@ -37,5 +37,50 @@
         <text name="pn_ui_exit" text="SCHLIESSEN"/>
         <text name="pn_console_status" text="Status und aktuelle Werte der Präzisionsfütterung anzeigen"/>
         <text name="pn_console_reload" text="Externe Einstellungen der Präzisionsfütterung neu laden"/>
+        <text name="pn_ui_filter_all" text="Alle Tiere"/>
+        <text name="pn_ui_filter_count" text="Angezeigt: %d von %d"/>
+        <text name="pn_ui_filter_count_received" text="Angezeigt: %d/%d empfangen"/>
+        <text name="pn_ui_stage_calf" text="Kälber"/>
+        <text name="pn_ui_stage_heifer" text="Färsen"/>
+        <text name="pn_ui_stage_cow_dry" text="Trockenstehende Kühe"/>
+        <text name="pn_ui_stage_cow_gest" text="Trächtige Kühe"/>
+        <text name="pn_ui_stage_cow_lact" text="Laktierende Kühe"/>
+        <text name="pn_ui_stage_yearling" text="Jährlinge"/>
+        <text name="pn_ui_stage_steer_finish" text="Mastochsen"/>
+        <text name="pn_ui_stage_bull" text="Bullen"/>
+        <text name="pn_ui_stage_lamb" text="Lämmer"/>
+        <text name="pn_ui_stage_grower" text="Jungtiere"/>
+        <text name="pn_ui_stage_ewe_dry" text="Nicht laktierende Mutterschafe"/>
+        <text name="pn_ui_stage_ewe_gest" text="Trächtige Mutterschafe"/>
+        <text name="pn_ui_stage_ewe_lact" text="Laktierende Mutterschafe"/>
+        <text name="pn_ui_stage_wether_finish" text="Kastrierte Masttiere"/>
+        <text name="pn_ui_stage_ram" text="Junge Widder"/>
+        <text name="pn_ui_stage_ram_adult" text="Ausgewachsene Widder"/>
+        <text name="pn_ui_stage_kid" text="Zicklein"/>
+        <text name="pn_ui_stage_doe_dry" text="Nicht laktierende Ziegen"/>
+        <text name="pn_ui_stage_doe_gest" text="Trächtige Ziegen"/>
+        <text name="pn_ui_stage_doe_lact" text="Laktierende Ziegen"/>
+        <text name="pn_ui_stage_buck" text="Junge Ziegenböcke"/>
+        <text name="pn_ui_stage_buck_adult" text="Ausgewachsene Ziegenböcke"/>
+        <text name="pn_ui_stage_piglet" text="Ferkel"/>
+        <text name="pn_ui_stage_gilt" text="Jungsauen"/>
+        <text name="pn_ui_stage_sow_dry" text="Nicht säugende Sauen"/>
+        <text name="pn_ui_stage_sow_gest" text="Trächtige Sauen"/>
+        <text name="pn_ui_stage_sow_lact" text="Säugende Sauen"/>
+        <text name="pn_ui_stage_barrow_finish" text="Kastrierte Mastschweine"/>
+        <text name="pn_ui_stage_boar" text="Junge Eber"/>
+        <text name="pn_ui_stage_boar_adult" text="Ausgewachsene Eber"/>
+        <text name="pn_ui_stage_chick" text="Küken"/>
+        <text name="pn_ui_stage_layer" text="Legehennen"/>
+        <text name="pn_ui_stage_rooster" text="Hähne"/>
+        <text name="pn_ui_stage_foal" text="Fohlen"/>
+        <text name="pn_ui_stage_weanling" text="Absetzer"/>
+        <text name="pn_ui_stage_mare_dry" text="Nicht laktierende Stuten"/>
+        <text name="pn_ui_stage_mare_gest" text="Trächtige Stuten"/>
+        <text name="pn_ui_stage_mare_lact" text="Laktierende Stuten"/>
+        <text name="pn_ui_stage_gelding" text="Wallache"/>
+        <text name="pn_ui_stage_colt" text="Junghengste"/>
+        <text name="pn_ui_stage_stallion" text="Hengste"/>
+        <text name="pn_ui_stage_default" text="Sonstige Tiere"/>
     </texts>
 </l10n>
