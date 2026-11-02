@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8" standalone="no"?>
 <modDesc descVersion="110">
     <author>SimGamerJen</author>
-    <version>0.5.0.4</version>
+    <version>0.5.0.7</version>
 
     <title>
         <en>Precision Nutrition</en>
@@ -11,9 +11,19 @@
 
     <description>
         <en><![CDATA[
-Precision Nutrition 0.5.0.4 alpha integrates directly with Realistic Livestock RM.
+Precision Nutrition 0.5.0.7 alpha integrates directly with Realistic Livestock RM.
 
 Ration energy and protein density modify RLRM's own food factor. The server is authoritative, the interface is read-only, and configuration is loaded only from feeds.xml, targets.xml, and stages.xml in modSettings/FS25_PrecisionNutrition.
+
+0.5.0.7-alpha1 (experimental test build):
+- Added optional Custom Animal Food Recipes mixer ingredient ledger and diagnostic console commands.
+- Preserved the 0.5.0.5/0.5.0.6 stage filter, dropdown and scrollbar fixes.
+
+0.5.0.6-alpha (test build):
+- Corrected dropdown styling, opaque menu layering, and filtered-list scrollbar visibility.
+
+0.5.0.5-alpha (test build):
+- Added a stage/status filter with stage counts and a filtered animal count.
 
 0.5.0.4-alpha:
 - Replaced the drawn overlay with a native FS25 screen and scrollable animal table.
@@ -39,9 +49,19 @@ Ration energy and protein density modify RLRM's own food factor. The server is a
 - Removed legacy livestock compatibility and experimental sales, grazing, and duplicate growth systems.
         ]]></en>
         <de><![CDATA[
-Precision Nutrition 0.5.0.4 Alpha ist direkt in Realistic Livestock RM integriert.
+Precision Nutrition 0.5.0.7 Alpha ist direkt in Realistic Livestock RM integriert.
 
 Die Energie- und Proteindichte der Ration beeinflusst den bestehenden Futterfaktor von RLRM. Der Server ist autoritativ, die Benutzeroberfläche ist schreibgeschützt und die Konfiguration wird ausschließlich aus feeds.xml, targets.xml und stages.xml im Ordner modSettings/FS25_PrecisionNutrition geladen.
+
+0.5.0.7-alpha1 (experimentelle Testversion):
+- Optionale Diagnose der Mixer-Zutaten mit Custom Animal Food Recipes hinzugefügt.
+- Filter-, Dropdown- und Scrollleistenkorrekturen aus 0.5.0.5/0.5.0.6 beibehalten.
+
+0.5.0.6-alpha (Testversion):
+- Dropdown-Stil, undurchsichtige Menüebene und Sichtbarkeit der Bildlaufleiste bei gefilterten Listen korrigiert.
+
+0.5.0.5-alpha (Testversion):
+- Filter nach Phase/Status mit Tierzahlen je Phase und Anzahl der gefilterten Tiere hinzugefügt.
 
 0.5.0.4-alpha:
 - Die gezeichnete Anzeige wurde durch einen nativen FS25-Bildschirm mit scrollbarer Tierliste ersetzt.
@@ -67,9 +87,19 @@ Die Energie- und Proteindichte der Ration beeinflusst den bestehenden Futterfakt
 - Veraltete Tiermod-Kompatibilität sowie experimentelle Verkaufs-, Weide- und doppelte Wachstumssysteme entfernt.
         ]]></de>
         <fr><![CDATA[
-Precision Nutrition 0.5.0.4 alpha s'intègre directement à Realistic Livestock RM.
+Precision Nutrition 0.5.0.7 alpha s'intègre directement à Realistic Livestock RM.
 
 La densité énergétique et protéique de la ration modifie le facteur d'alimentation existant de RLRM. Le serveur fait autorité, l'interface est en lecture seule et la configuration est chargée uniquement depuis feeds.xml, targets.xml et stages.xml dans modSettings/FS25_PrecisionNutrition.
+
+0.5.0.7-alpha1 (version expérimentale) :
+- Ajout du diagnostic facultatif des ingrédients du mélangeur avec Custom Animal Food Recipes.
+- Conservation des corrections des filtres, menus et barres de défilement des versions 0.5.0.5/0.5.0.6.
+
+0.5.0.6-alpha (version de test) :
+- Correction du style de la liste déroulante, de son fond opaque et de la visibilité de la barre de défilement.
+
+0.5.0.5-alpha (version de test) :
+- Ajout d’un filtre par stade/état avec les effectifs par stade et le nombre d’animaux filtrés.
 
 0.5.0.4-alpha :
 - Remplacement de l'affichage dessiné par un écran FS25 natif avec une liste d'animaux déroulante.
