@@ -1,4 +1,4 @@
-# Precision Nutrition 0.5.0.4-alpha
+# Precision Nutrition 0.5.0.7-alpha1 (experimental test build)
 
 Precision Nutrition makes ration quality matter to individually tracked animals in Farming Simulator 25. This alpha is a focused integration for **FS25_RealisticLivestockRM 1.4.0.0**.
 
@@ -12,6 +12,7 @@ Precision Nutrition makes ration quality matter to individually tracked animals 
 - Populates the interface immediately from the live husbandry; it does not wait for the next RLRM hourly health update.
 - Restores read-only individual development rows showing each animal's age, life stage, current/target weight, development percentage, health, ration quality, and effective food response.
 - Presents those details in a native `ScreenElement` with a summary band, grouped columns, alternating rows, threshold colours, and a scrollable `SmoothList`.
+- Filters the animal table by the stages present in the selected husbandry, with localized labels and counts.
 - Synchronizes summary metrics from the server to multiplayer clients.
 
 Precision Nutrition does not contain a second growth clock and does not directly edit animal weight, health, reproduction, sales, trough levels, or grazing state.
@@ -21,7 +22,7 @@ Precision Nutrition does not contain a second growth clock and does not directly
 - Farming Simulator 25
 - FS25_RealisticLivestockRM 1.4.0.0
 
-The dependency is intentional: PN disables itself if RLRM is unavailable. Legacy Realistic Livestock and Enhanced Livestock are not supported. Integrations with other SimGamerJen mods are future work and are not enabled in this alpha.
+The dependency is intentional: PN disables itself if RLRM is unavailable. Legacy Realistic Livestock and Enhanced Livestock are not supported. Custom Animal Food Recipes is supported as an optional diagnostic provider; other integrations remain future work.
 
 ## Installation
 
@@ -34,7 +35,10 @@ The dependency is intentional: PN disables itself if RLRM is unavailable. Legacy
 - `Alt+N`: open the Precision Nutrition screen
 - **Previous Husbandry** / **Next Husbandry**: use the native button-bar keys or controller buttons shown by FS25
 - Mouse wheel, scrollbar, keyboard, or controller: scroll and navigate the animal table
+- **Stage / Status**: open the dropdown, then click a stage or select it with the keyboard/controller. **All animals** clears the filter. `Esc` first dismisses an open dropdown.
 - `Esc` or **Exit**: close the screen and return control to gameplay
+
+The dropdown resets to **All animals** when the screen opens or you change husbandry. Stage option counts and **Showing X of Y** describe the available animal rows; the summary band always describes the whole herd. Custom stages retain their configured names. Multiplayer currently transmits at most 60 animal rows per husbandry: if details are incomplete, the count says **received**, and filters apply only to those received rows.
 
 ## External configuration
 
@@ -98,7 +102,11 @@ The RLRM health-update hook runs only where `g_server` exists. Clients receive r
 - Test a host/client session and a dedicated server, including a late-joining client.
 - Save, reload, and review `log.txt` for `[Precision Nutrition]` errors or repeated hook messages.
 
-The native screen, mouse focus, scrolling, husbandry navigation, Esc/Exit handling, final column layout, RLRM 1.4 callback integration, and uninterrupted monthly crop growth have been confirmed in game. Nutrition behaviour and multiplayer remain alpha testing areas.
+The stage dropdown now uses a dark outlined selector, a native down arrow, and an opaque menu on its own GUI layer. The animal scrollbar hides when the filtered list fits on screen. These visual corrections still need in-game confirmation.
+
+The stage filter is new in this test build and still needs in-game checks for mouse/keyboard/controller selection, dismissal, scrolling, husbandry switching, and multiplayer.
+
+The 0.5.0.4 native screen, mouse focus, scrolling, husbandry navigation, Esc/Exit handling, final column layout, RLRM 1.4 callback integration, and uninterrupted monthly crop growth have been confirmed in game. Nutrition behaviour and multiplayer remain alpha testing areas.
 
 ## Copyright and permissions
 
