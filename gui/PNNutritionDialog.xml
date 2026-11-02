@@ -31,7 +31,20 @@
             </GuiElement>
 
             <Text profile="pn_stageSummary" id="stageText"
-                  position="20px -184px" size="1385px 28px" text=""/>
+                  position="20px -184px" size="730px 28px" text=""/>
+            <Text profile="pn_filterLabel" position="1030px -184px" size="120px 28px"
+                  text="$l10n_pn_ui_col_stage"/>
+            <Button profile="pn_filterButton" id="stageFilterButton"
+                    position="1160px -180px" size="220px 32px" onClick="onClickStageFilter"
+                    text="$l10n_pn_ui_filter_all" focusChangeBottom="animalList">
+                <Bitmap profile="pn_filterBorderTop"/>
+                <Bitmap profile="pn_filterBorderBottom"/>
+                <Bitmap profile="pn_filterBorderLeft"/>
+                <Bitmap profile="pn_filterBorderRight"/>
+                <Bitmap profile="pn_filterArrow" position="-12px 0px" size="12px 8px"/>
+            </Button>
+            <Text profile="pn_filterCount" id="filterCountText"
+                  position="1395px -184px" size="130px 28px" text=""/>
 
             <GuiElement profile="pn_tableHeader" position="20px -220px" size="1385px 56px">
                 <Bitmap position="0px 0px" size="590px 20px" imageColor="0.10 0.11 0.11 0.96"/>
@@ -65,7 +78,7 @@
             <SmoothList profile="pn_animalList" id="animalList"
                         position="20px -276px" size="1385px 468px"
                         supportsMouseScrolling="true" ignoreMouse="false"
-                        focusInit="onOpen" focusChangeTop="nil" focusChangeBottom="nil">
+                        focusInit="onOpen" focusChangeTop="stageFilterButton" focusChangeBottom="nil">
                 <ListItem profile="pn_animalListItem" size="1370px 42px">
                     <Bitmap position="590px 0px" size="380px 42px" imageColor="0.10 0.13 0.10 0.16"/>
                     <Text profile="pn_cellLeft" position="12px 0px" size="246px 42px" textAlignment="left" name="animalName"/>
@@ -90,6 +103,28 @@
                              position="-30px -276px" size="12px 468px">
                 <Slider profile="fs25_listSlider" size="6px 460px" dataElementId="animalList"/>
             </ThreePartBitmap>
+            <!-- Isolate the popup's opaque overlays and text from the table's draw batch. -->
+            <GuiElement profile="pn_filterPanel" id="stageFilterPanel"
+                        position="1160px -214px" size="280px 252px" visible="false" newLayer="true">
+                <Bitmap profile="pn_filterPanelBg" id="stageFilterBackground" size="280px 252px"/>
+                <SmoothList profile="pn_filterList" id="stageFilterList"
+                            position="0px 0px" size="280px 252px" onClick="onClickStageOption"
+                            supportsMouseScrolling="true" ignoreMouse="false" selectOnClick="false"
+                            focusChangeTop="stageFilterButton" focusChangeBottom="stageFilterButton">
+                    <ListItem profile="pn_filterListItem" size="280px 36px">
+                        <Text profile="pn_filterOptionText" position="12px 0px" size="248px 36px"
+                              name="optionText"/>
+                    </ListItem>
+                </SmoothList>
+                <ThreePartBitmap profile="pn_sliderBox" id="stageFilterSlider"
+                                 position="12px 0px" size="12px 252px">
+                    <Slider profile="fs25_listSlider" size="6px 244px" dataElementId="stageFilterList"/>
+                </ThreePartBitmap>
+                <Bitmap profile="pn_filterBorderTop"/>
+                <Bitmap profile="pn_filterBorderBottom"/>
+                <Bitmap profile="pn_filterBorderLeft"/>
+                <Bitmap profile="pn_filterBorderRight"/>
+            </GuiElement>
         </GuiElement>
 
         <BoxLayout profile="fs25_dialogButtonBox" id="buttonsPC">
@@ -127,6 +162,7 @@
             <textColor value="$preset_fs25_colorMainLight"/>
         </Profile>
         <Profile name="pn_stageSummary" extends="baseReference" with="anchorTopLeft">
+            <textTruncate value="true"/>
             <textBold value="false"/>
             <textSize value="15px"/>
             <textAlignment value="left"/>
@@ -172,6 +208,79 @@
         </Profile>
         <Profile name="pn_cellRight" extends="pn_cellLeft">
             <textAlignment value="right"/>
+        </Profile>
+        <Profile name="pn_filterLabel" extends="pn_stageSummary">
+            <textSize value="13px"/>
+        </Profile>
+        <Profile name="pn_filterCount" extends="pn_stageSummary">
+            <textSize value="13px"/>
+            <textAlignment value="left"/>
+        </Profile>
+        <Profile name="pn_filterButton" extends="buttonBase" with="anchorTopLeft">
+            <imageSliceId value="gui.matte"/>
+            <imageFocusedSliceId value="gui.matte"/>
+            <imageHighlightedSliceId value="gui.matte"/>
+            <imageSelectedSliceId value="gui.matte"/>
+            <imagePressedSliceId value="gui.matte"/>
+            <imageDisabledSliceId value="gui.matte"/>
+            <imageColor value="0.12 0.13 0.14 1"/>
+            <imageFocusedColor value="0.17 0.18 0.19 1"/>
+            <imageHighlightedColor value="0.17 0.18 0.19 1"/>
+            <imageSelectedColor value="0.17 0.18 0.19 1"/>
+            <imagePressedColor value="0.20 0.21 0.22 1"/>
+            <imageDisabledColor value="0.10 0.11 0.12 1"/>
+            <textColor value="$preset_fs25_colorMainLight"/>
+            <textFocusedColor value="$preset_fs25_colorMainLight"/>
+            <textHighlightedColor value="$preset_fs25_colorMainLight"/>
+            <textSelectedColor value="$preset_fs25_colorMainLight"/>
+            <textPressedColor value="$preset_fs25_colorMainLight"/>
+            <textSize value="14px"/>
+            <textAlignment value="left"/>
+            <textOffset value="12px 0px"/>
+            <textTruncate value="true"/>
+        </Profile>
+        <Profile name="pn_filterBorder" extends="baseReference">
+            <imageSliceId value="gui.matte"/>
+            <imageColor value="0.38 0.39 0.41 1"/>
+            <imageFocusedColor value="$preset_fs25_colorMainHighlight"/>
+            <imageHighlightedColor value="$preset_fs25_colorMainHighlight"/>
+        </Profile>
+        <Profile name="pn_filterBorderTop" extends="pn_filterBorder" with="anchorTopStretchingX">
+            <size value="100% 1px"/>
+        </Profile>
+        <Profile name="pn_filterBorderBottom" extends="pn_filterBorder" with="anchorBottomStretchingX">
+            <size value="100% 1px"/>
+        </Profile>
+        <Profile name="pn_filterBorderLeft" extends="pn_filterBorder" with="anchorStretchingYLeft">
+            <size value="1px 100%"/>
+        </Profile>
+        <Profile name="pn_filterBorderRight" extends="pn_filterBorder" with="anchorStretchingYRight">
+            <size value="1px 100%"/>
+        </Profile>
+        <Profile name="pn_filterArrow" extends="fs25_vehiclesHeaderIconSortDescending" with="anchorMiddleRight">
+            <imageColor value="$preset_fs25_colorMainLight"/>
+            <imageFocusedColor value="$preset_fs25_colorMainLight"/>
+            <imageHighlightedColor value="$preset_fs25_colorMainLight"/>
+        </Profile>
+        <Profile name="pn_filterPanel" extends="baseReference" with="anchorTopLeft"/>
+        <Profile name="pn_filterPanelBg" extends="baseReference" with="anchorTopLeft">
+            <imageSliceId value="gui.matte"/>
+            <imageColor value="0.12 0.13 0.14 1"/>
+        </Profile>
+        <Profile name="pn_filterList" extends="emptyPanel" with="anchorTopLeft">
+            <fillRowsWithEmptyItems value="false"/>
+        </Profile>
+        <Profile name="pn_filterListItem" extends="baseReference" with="anchorTopStretchingX">
+            <height value="36px"/>
+            <imageSliceId value="gui.matte"/>
+            <imageColor value="0.12 0.13 0.14 1"/>
+            <imageSelectedColor value="$preset_fs25_colorMainHighlight"/>
+            <imageHighlightedColor value="0.22 0.23 0.24 1"/>
+            <imageFocusedColor value="$preset_fs25_colorMainHighlight"/>
+        </Profile>
+        <Profile name="pn_filterOptionText" extends="pn_cellLeft">
+            <textSize value="14px"/>
+            <textTruncate value="true"/>
         </Profile>
         <Profile name="pn_sliderBox" extends="fs25_listSliderBox" with="anchorTopRight"/>
         <Profile name="pn_previousButton" extends="fs25_wideButton" with="touchButton">

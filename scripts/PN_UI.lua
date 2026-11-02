@@ -32,6 +32,24 @@ local function statusSuffix(animal)
     return #flags > 0 and " [" .. table.concat(flags, ", ") .. "]" or ""
 end
 
+-- Built-in stages get localized labels; user-defined stage identifiers remain intact.
+local stageKeys = {}
+for _, stage in ipairs({
+    "CALF", "HEIFER", "COW_DRY", "COW_GEST", "COW_LACT", "YEARLING", "STEER_FINISH", "BULL",
+    "LAMB", "GROWER", "EWE_DRY", "EWE_GEST", "EWE_LACT", "WETHER_FINISH", "RAM", "RAM_ADULT",
+    "KID", "DOE_DRY", "DOE_GEST", "DOE_LACT", "BUCK", "BUCK_ADULT",
+    "PIGLET", "GILT", "SOW_DRY", "SOW_GEST", "SOW_LACT", "BARROW_FINISH", "BOAR", "BOAR_ADULT",
+    "CHICK", "LAYER", "ROOSTER", "FOAL", "WEANLING", "MARE_DRY", "MARE_GEST", "MARE_LACT",
+    "GELDING", "COLT", "STALLION", "DEFAULT"
+}) do
+    stageKeys[stage] = "pn_ui_stage_" .. stage:lower()
+end
+
+local function stageName(stage)
+    local key = stageKeys[stage]
+    return key ~= nil and g_i18n:getText(key) or stage
+end
+
 local function setFactorColor(element, value)
     if element == nil or element.setTextColor == nil then return end
     value = tonumber(value) or 0
@@ -49,6 +67,9 @@ function PNNutritionDialog.new(target, customMt)
     self.returnScreenName = ""
     self.metrics = {}
     self.animals = {}
+    self.stageOptions = {}
+    self.selectedStage = nil
+    self.stageFilterOpen = false
     self.selectedHusbandry = math.max(tonumber(PN_UI.selected) or 1, 1)
     return self
 end
@@ -59,6 +80,13 @@ function PNNutritionDialog:onGuiSetupFinished()
     self.emptyText = self:getDescendantById("emptyText")
     self.husbandryText = self:getDescendantById("husbandryText")
     self.stageText = self:getDescendantById("stageText")
+    self.stageFilterButton = self:getDescendantById("stageFilterButton")
+    self.stageFilterList = self:getDescendantById("stageFilterList")
+    self.stageFilterPanel = self:getDescendantById("stageFilterPanel")
+    self.stageFilterBackground = self:getDescendantById("stageFilterBackground")
+    self.stageFilterSlider = self:getDescendantById("stageFilterSlider")
+    self.filterCountText = self:getDescendantById("filterCountText")
+    self.animalSliderBox = self:getDescendantById("animalSliderBox")
     self.prevButton = self:getDescendantById("prevButton")
     self.nextButton = self:getDescendantById("nextButton")
     self.summaryValues = {
@@ -71,6 +99,10 @@ function PNNutritionDialog:onGuiSetupFinished()
         dryMatter = self:getDescendantById("dryMatterValue")
     }
     if self.animalList ~= nil then self.animalList:setDataSource(self) end
+    if self.stageFilterList ~= nil then
+        self.stageFilterList:setDataSource(self)
+        self.stageFilterRowHeight = self.stageFilterList.size[2] / 7
+    end
 end
 
 function PNNutritionDialog:onCreate()
@@ -87,15 +119,115 @@ function PNNutritionDialog:refreshMetrics()
     self:updateView()
 end
 
+function PNNutritionDialog:updateStageFilter(metric)
+    local individuals = metric ~= nil and metric.individuals or {}
+    local counts = {}
+    for _, animal in ipairs(individuals) do
+        local stage = tostring(animal.stage or "DEFAULT")
+        counts[stage] = (counts[stage] or 0) + 1
+    end
+    local stages = {}
+    for stage in pairs(counts) do table.insert(stages, stage) end
+    table.sort(stages)
+    if self.selectedStage ~= nil and counts[self.selectedStage] == nil then
+        self.selectedStage = nil
+    end
+
+    self.stageOptions = {{ text=string.format("%s (%d)",
+        g_i18n:getText("pn_ui_filter_all"), #individuals) }}
+    local selectedIndex = 1
+    for _, stage in ipairs(stages) do
+        table.insert(self.stageOptions, {
+            stage=stage, text=string.format("%s (%d)", stageName(stage), counts[stage])
+        })
+        if stage == self.selectedStage then selectedIndex = #self.stageOptions end
+    end
+    self.selectedStageIndex = selectedIndex
+    self.animals = {}
+    for _, animal in ipairs(individuals) do
+        if self.selectedStage == nil or tostring(animal.stage or "DEFAULT") == self.selectedStage then
+            table.insert(self.animals, animal)
+        end
+    end
+    if self.stageFilterButton ~= nil then
+        self.stageFilterButton:setText(self.stageOptions[selectedIndex].text)
+        self.stageFilterButton:setDisabled(#individuals == 0)
+    end
+    if self.filterCountText ~= nil then
+        local isPartial = metric ~= nil and (tonumber(metric.individualTotal) or #individuals) > #individuals
+        self.filterCountText:setText(string.format(g_i18n:getText(
+            isPartial and "pn_ui_filter_count_received" or "pn_ui_filter_count"),
+            #self.animals, #individuals))
+    end
+end
+
+function PNNutritionDialog:setStageFilterOpen(isOpen)
+    self.stageFilterOpen = isOpen == true
+    if self.stageFilterPanel ~= nil then self.stageFilterPanel:setVisible(self.stageFilterOpen) end
+    if self.animalList ~= nil then self.animalList:setDisabled(self.stageFilterOpen) end
+    if self.animalSliderBox ~= nil then self.animalSliderBox:setDisabled(self.stageFilterOpen) end
+    if self.stageFilterOpen and self.stageFilterList ~= nil then
+        local height = math.min(#self.stageOptions, 7) * self.stageFilterRowHeight
+        self.stageFilterList:setSize(self.stageFilterList.size[1], height)
+        self.stageFilterPanel:setSize(self.stageFilterPanel.size[1], height)
+        if self.stageFilterBackground ~= nil then
+            self.stageFilterBackground:setSize(self.stageFilterBackground.size[1], height)
+        end
+        if self.stageFilterSlider ~= nil then self.stageFilterSlider:setVisible(#self.stageOptions > 7) end
+        self.stageFilterList:reloadData()
+        self.stageFilterList:setSelectedItem(1, self.selectedStageIndex)
+        if FocusManager ~= nil then FocusManager:setFocus(self.stageFilterList) end
+    end
+end
+
+function PNNutritionDialog:onClickStageFilter()
+    if self.stageFilterButton == nil or #self.stageOptions <= 1 then return end
+    local wasOpen = self.stageFilterOpen
+    self:setStageFilterOpen(not wasOpen)
+    if wasOpen and FocusManager ~= nil then FocusManager:setFocus(self.stageFilterButton) end
+end
+
+function PNNutritionDialog:onClickStageOption(_list, _section, index)
+    local option = self.stageOptions[index]
+    if not self.stageFilterOpen or option == nil then return end
+    self.selectedStage = option.stage
+    self:setStageFilterOpen(false)
+    self:updateView()
+    if #self.animals > 0 and self.animalList ~= nil then self.animalList:scrollToStart() end
+    if FocusManager ~= nil then FocusManager:setFocus(self.stageFilterButton) end
+end
+
+function PNNutritionDialog:mouseEvent(posX, posY, isDown, isUp, button, eventUsed)
+    if self.stageFilterOpen and isDown and button == Input.MOUSE_BUTTON_LEFT then
+        local function inside(element)
+            return element ~= nil and GuiUtils.checkOverlayOverlap(posX, posY,
+                element.absPosition[1], element.absPosition[2], element.absSize[1], element.absSize[2])
+        end
+        if not inside(self.stageFilterPanel) and not inside(self.stageFilterButton) then
+            self:setStageFilterOpen(false)
+            if FocusManager ~= nil then FocusManager:setFocus(self.stageFilterButton) end
+            return true
+        end
+    end
+    return PNNutritionDialog:superClass().mouseEvent(self, posX, posY, isDown, isUp, button, eventUsed)
+end
+
 function PNNutritionDialog:updateView()
     local metric = self.metrics[self.selectedHusbandry]
-    self.animals = metric ~= nil and metric.individuals or {}
+    self:updateStageFilter(metric)
     local hasMetric = metric ~= nil
     local hasAnimals = #self.animals > 0
 
     if self.animalList ~= nil then
         self.animalList:setVisible(hasAnimals)
         if hasAnimals then self.animalList:reloadData() end
+    end
+    if self.animalSliderBox ~= nil then
+        local needsScrolling = hasAnimals
+        if self.animalList ~= nil and self.animalList.contentSize ~= nil then
+            needsScrolling = hasAnimals and self.animalList.contentSize > self.animalList.absSize[2] + 0.00001
+        end
+        self.animalSliderBox:setVisible(needsScrolling)
     end
     if self.emptyText ~= nil then
         self.emptyText:setVisible(not hasAnimals)
@@ -145,6 +277,8 @@ function PNNutritionDialog:onOpen()
     PN_UI.visible = true
     PN_UI.dialogOpen = true
 
+    self.selectedStage = nil
+    self:setStageFilterOpen(false)
     self:refreshMetrics()
     if #self.animals > 0 and self.animalList ~= nil and FocusManager ~= nil then
         FocusManager:setFocus(self.animalList)
@@ -156,6 +290,7 @@ function PNNutritionDialog:update(dt)
 end
 
 function PNNutritionDialog:onClose()
+    self:setStageFilterOpen(false)
     PN_UI.visible = false
     PN_UI.dialogOpen = false
     PNNutritionDialog:superClass().onClose(self)
@@ -166,6 +301,8 @@ function PNNutritionDialog:onClickPrevious()
     self.selectedHusbandry = ((self.selectedHusbandry - 2) % #self.metrics) + 1
     PN_UI.selected = self.selectedHusbandry
     PN_UI.page = 1
+    self.selectedStage = nil
+    self:setStageFilterOpen(false)
     self:updateView()
 end
 
@@ -174,10 +311,17 @@ function PNNutritionDialog:onClickNext()
     self.selectedHusbandry = (self.selectedHusbandry % #self.metrics) + 1
     PN_UI.selected = self.selectedHusbandry
     PN_UI.page = 1
+    self.selectedStage = nil
+    self:setStageFilterOpen(false)
     self:updateView()
 end
 
 function PNNutritionDialog:onClickBack()
+    if self.stageFilterOpen then
+        self:setStageFilterOpen(false)
+        if FocusManager ~= nil then FocusManager:setFocus(self.stageFilterButton) end
+        return
+    end
     if self.close ~= nil then
         self:close()
     elseif g_gui ~= nil then
@@ -189,7 +333,8 @@ function PNNutritionDialog:getNumberOfSections()
     return 1
 end
 
-function PNNutritionDialog:getNumberOfItemsInSection(_list, _section)
+function PNNutritionDialog:getNumberOfItemsInSection(list, _section)
+    if list == self.stageFilterList then return #self.stageOptions end
     return #self.animals
 end
 
@@ -197,7 +342,13 @@ function PNNutritionDialog:getTitleForSectionHeader(_list, _section)
     return ""
 end
 
-function PNNutritionDialog:populateCellForItemInSection(_list, _section, index, cell)
+function PNNutritionDialog:populateCellForItemInSection(list, _section, index, cell)
+    if list == self.stageFilterList then
+        local option = self.stageOptions[index]
+        local text = cell:getAttribute("optionText")
+        if option ~= nil and text ~= nil then text:setText(option.text) end
+        return
+    end
     local animal = self.animals[index]
     if animal == nil then return end
 

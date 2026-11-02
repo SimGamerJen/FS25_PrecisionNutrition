@@ -21,6 +21,8 @@ function PN_Debug.register()
     if PN_Debug.registered or addConsoleCommand == nil then return end
     addConsoleCommand("pnStatus", g_i18n:getText("pn_console_status"), "pnStatus", PN_Debug)
     addConsoleCommand("pnReload", g_i18n:getText("pn_console_reload"), "pnReload", PN_Debug)
+    addConsoleCommand("pnMixerDump", "Print mixer ingredient ledgers and provenance", "pnMixerDump", PN_Debug)
+    addConsoleCommand("pnMixerTrace", "Toggle live mixer input/removal trace", "pnMixerTrace", PN_Debug)
     PN_Debug.registered = true
 end
 
@@ -28,6 +30,8 @@ function PN_Debug.unregister()
     if not PN_Debug.registered or removeConsoleCommand == nil then return end
     removeConsoleCommand("pnStatus")
     removeConsoleCommand("pnReload")
+    removeConsoleCommand("pnMixerDump")
+    removeConsoleCommand("pnMixerTrace")
     PN_Debug.registered = false
 end
 
@@ -39,5 +43,12 @@ function PN_Debug:pnReload()
     reloadSettings()
 end
 
+function PN_Debug:pnMixerDump()
+    PN_MixerTracker.dump()
+end
+
+function PN_Debug:pnMixerTrace()
+    PN_MixerTracker.toggleTrace()
+end
 
 return PN_Debug
